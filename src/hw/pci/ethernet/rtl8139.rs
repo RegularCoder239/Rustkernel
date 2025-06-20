@@ -31,9 +31,6 @@ impl NetworkDeviceTrait for RTL8139 {
 		self.0.mac
 	}
 	fn setup(&mut self) {
-		assert!(core::mem::offset_of!(RTL8139Registers, command) == 0x37, "We fucked up completely.");
-		assert!(core::mem::offset_of!(RTL8139Registers, imr) == 0x3c, "We fucked up not completely.");
-		assert!(core::mem::offset_of!(RTL8139Registers, config_rx) == 0x44, "We fucked up.");
 		self.0.enable = 0xff;
 		self.0.command = 0x10;
 		self.0.rx_buffer = RX_BUFFER.physical_address() as u32;

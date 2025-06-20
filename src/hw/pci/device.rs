@@ -58,20 +58,7 @@ impl DeviceTrait for UnspecifiedDevice {
 
 impl DeviceTrait for DeviceEnum {
 	fn specific_scan(&self) {
-/*		match self {
-			DeviceEnum::Invalid => {},
-			DeviceEnum::Unknown(header) => {
-				let vid = header.vendor_id;
-				let hid = header.device_id;
-				log::error!("Found unknown device: Class code: {:x} Subclass code: {:x} Vendor ID: {:x} Device ID: {:x}",
-							header.class_code,
-							header.subclass,
-							vid,
-							hid)
-			},
-
-		}
-*/		match self {
+		match self {
 			DeviceEnum::Drive(device) => device.scan(),
 			DeviceEnum::Network(device) => device.scan(),
 			DeviceEnum::Bridge(device) => device.scan(),
@@ -80,15 +67,3 @@ impl DeviceTrait for DeviceEnum {
 		}
 	}
 }
-/*
-impl fmt::Display for DeviceEnum {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			DeviceEnum::Drive(_) => write!(f, "Drive"),
-			DeviceEnum::Bridge(_) => write!(f, "Bridge"),
-			DeviceEnum::Network(n) => write!(f, "{} Controller", n),
-			_ => write!(f, "Unknown")
-		}
-	}
-}
-*/
