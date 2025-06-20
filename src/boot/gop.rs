@@ -1,33 +1,20 @@
 use uefi::boot::ScopedProtocol;
-
-#[derive(Debug)]
-pub enum GOPError {
-	UefiError(uefi::Error),
-	NoModeFound
-}
-
-pub struct GOP {
-	protocol: ScopedProtocol<GraphicsOutput>
-}
-
-impl From<uefi::Error> for GOPError {
-	fn from(err: uefi::Error) -> Self {
-		Self::UefiError(err)
-	}
-}
-
 use uefi::proto::console::gop::{
 	GraphicsOutput,
 	ModeInfo
 };
 use uefi::boot;
 
+pub struct GOP {
+	protocol: ScopedProtocol<GraphicsOutput>
+}
+
 impl GOP {
-	pub fn new() -> Result<GOP, GOPError> {
+	pub fn new() -> Option<GOP> {
 		let mut gop = GOP {
 			protocol: boot::open_protocol_exclusive::<GraphicsOutput>(
-				boot::get_handle_for_protocol::<GraphicsOutput>()?
-			)?
+				boot::get_handle_for_protocol::<GraphicsOutput>().ok()?
+			).ok()?
 		};
 		let mode = gop.protocol.modes().max_by(|mode, mode2| {
 			fn pixels(mode: &ModeInfo) -> usize {
@@ -41,8 +28,14 @@ impl GOP {
 			pixels(mode.info()).cmp(
 				&pixels(mode2.info())
 			)
-		}).ok_or(GOPError::NoModeFound)?;
-		gop.protocol.set_mode(&mode);
-		Ok(gop)
+		})?;
+		gop.protocol.set_mode(&mode).ok()?;
+		Some(gop)
+	}
+	pub fn frame_buffer(&mut self) -> *mut u32 {
+		self.protocol.frame_buffer().as_mut_ptr() as *mut u32
+	}
+	pub fn resolution(&self) -> (usize, usize) {
+		self.protocol.current_mode_info().resolution()
 	}
 }

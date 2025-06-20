@@ -1,13 +1,69 @@
-pub mod paging;
-pub mod buddy; /*{
-	pub enum BuddyError {
-		_1gIndexFault, // Fails to find free 1G section (too much RAM?)
-		_2mIndexFault, // Fails to find free 2M section
-	}
+mod virt;
+pub mod buddy;
+pub use virt::*;
 
-	extern {
-		pub fn allocate(size: u64) -> Option<u64>;
-		pub fn addRegion(addr: u64, size: usize) -> Result<(), BuddyError>;
+use uefi::mem::memory_map::{
+	MemoryMapOwned,
+	MemoryType,
+	MemoryMap
+};
+use crate::std::PerCpu;
+
+static INITALIZED: PerCpu<bool> = PerCpu::new(false);
+
+pub const fn align_size(size: usize) -> usize {
+	if size < 0x200000 {
+		return 0x1000;
+	}
+	if size < 0x40000000 {
+		0x200000
+	} else {
+		0x40000000
 	}
 }
-*/
+
+
+fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
+	let descriptors = memory_map.entries().filter(|&desc| desc.ty == MemoryType::LOADER_CODE ||
+												  desc.ty == MemoryType::LOADER_DATA ||
+												  desc.ty == MemoryType::RUNTIME_SERVICES_CODE ||
+												  desc.ty == MemoryType::RUNTIME_SERVICES_DATA);
+	let max = descriptors.clone().max_by(|&d1, &d2| d1.phys_start.cmp(&d2.phys_start))?;
+
+	Some((
+		descriptors.min_by(|&d1, &d2| d1.phys_start.cmp(&d2.phys_start))?.phys_start,
+		  max.phys_start + max.page_count * 0x1000
+	))
+}
+
+#[inline]
+pub fn setup(memory_map: MemoryMapOwned) {
+	log::debug!("Setting up memory manager.");
+	buddy::add_memory_map(&memory_map).expect("Failed to generate memory map.");
+	let kernel_space = get_kernel_space(&memory_map).expect("No kernel found (impossible!)");
+	kerneltable::setup(kernel_space);
+
+	virt::setup_global_table();
+	current_page_table()
+		.load();
+
+	unsafe { // KERNEL REMAP. VERY DANGEROUS!!
+		core::arch::asm!("lea r8, {0}; add r8, {1}; add rbp, {1}; add rsp, {1}; jmp r8",
+						 label {},
+						 in(reg) kernel_offset());
+	}
+	kerneltable::setup_kernel_offset();
+	INITALIZED.set(true);
+}
+
+#[inline]
+pub fn per_core_setup() {
+	current_page_table()
+		.load();
+	INITALIZED.set(true);
+}
+
+pub fn initalized() -> bool {
+	*INITALIZED.deref()
+}
+

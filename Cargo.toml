@@ -7,6 +7,13 @@ edition = "2024"
 panic = "abort"
 
 [dependencies]
-log = "0.4.27"
-uefi = { version = "0.34.1", features = ["logger", "panic_handler"] }
+acpi = { version = "*", features = [], default-features = false }
+crc = "*"
+log = "*"
+paste = "*"
+uefi = { version = "*", features = ["logger"] }
+uefi-raw = "*"
 
+[build]
+rustflags = ["link-args=-Tlink.x", "-C", "/debug:dwarf", "relocation-model=pie", "code-model=kernel", "opt-level=1", "lto=yes"]
+target = "x86_64-unknown-uefi"

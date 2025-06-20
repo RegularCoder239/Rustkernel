@@ -1,16 +1,9 @@
 pub mod cpu;
-/*
-use hw::cpu::interrupt::IDT;
+pub mod graphics;
+pub mod acpi;
+pub mod pci;
+mod traits;
 
-pub struct HardwareStruct {
-	idt: IDT
-}
-
-impl HardwareStruct {
-	pub unsafe fn new() -> HardwareStruct {
-		HardwareStruct {
-			idt: IDT::new()
-		}
-	}
-}
-*/
+pub use traits::{
+	Disk
+};

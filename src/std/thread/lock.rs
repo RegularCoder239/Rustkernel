@@ -14,9 +14,14 @@ impl Lock {
 			state: AtomicBool::new(false)
 		}
 	}
+	pub const fn new_locked() -> Lock {
+		Lock {
+			state: AtomicBool::new(true)
+		}
+	}
 
 	pub fn lock(&self) {
-		while self.is_locked() {
+		while self.state.swap(true, Ordering::Acquire) {
 			hint::spin_loop();
 		}
 		self.state.store(true, Ordering::Release);

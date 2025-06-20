@@ -1,22 +1,24 @@
-use crate::mapped;
 use core::ops::{
 	Deref,
 	DerefMut
 };
-use core::hint;
+use crate::mm::{
+	Mapped
+};
+use crate::std::{
+	LazyMutex
+};
+use crate::{
+	std,
+	lapic
+};
 
-enum Command {
-	Interrupt,
-	Init,
-	InitDeassert,
-	Sipi
+struct LAPICRegister {
+	content: u32,
+	padding: [u32; 3]
 }
 
 #[repr(C, align(0x10))]
-struct LAPICRegister {
-	content: u32
-}
-
 pub struct LAPIC {
 	reserved: [LAPICRegister; 2],
 	id: LAPICRegister,
@@ -40,26 +42,73 @@ pub struct LAPIC {
 	command_register_2: LAPICRegister
 }
 
-pub fn lapic() -> Option<&'static mut LAPIC> {
-	Some(&mut *(mapped!(0xfee00000, LAPIC, 0x1000)?))
+pub struct IOAPIC {
+	register_address: u32,
+	reserved: [u32; 3],
+	register_content: u32
 }
+
+pub static LAPICS: LazyMutex<&mut LAPIC> = LazyMutex::new(
+	|| {
+		unsafe {
+			&mut *0xfee00000_u64.mapped_global::<LAPIC>(0x1000).expect("Failed to map LAPIC.")
+		}
+	}
+);
+pub static IOAPIC: LazyMutex<&mut IOAPIC> = LazyMutex::new(
+	|| unsafe {
+			&mut *(0xfec00000_u64.mapped_global::<IOAPIC>(0x1000).expect("Failed to map IOAPIC."))
+	   }
+);
 
 impl LAPIC {
 	// DANGER: Will reset every cpu except the current one.
-	pub fn init_non_boot_cpus(&mut self, startup_addr: u32) -> &mut LAPIC {
-		//self.send_command(0xc500, 0x0);
-		self.send_command(0xc0600 + startup_addr / 0x1000, 0x0);
-		self
+	pub fn init_non_boot_cpus(startup_addr: u32) {
+		let mut l = LAPICS.lock();
+		l.send_command(0xc4500, 0x0);
+		l.send_command(0xc0600 + 8, 0x0);
+	}
+	pub fn poweroff_other_cpus(&mut self) {
+		self.send_command(0xc8500, 0x0);
+	}
+	pub fn end_of_interrupt() {
+		*lapic!().eoi = 0x0;
+	}
+	pub fn enable_hardware_interrupts() {
+		std::outb(0xff, 0x21);
+		std::outb(0xff, 0xa1);
+
+		let mut lapiclock = LAPICS.lock();
+		*lapiclock.destination_format = 0xf0000000;
+		*lapiclock.logical_destination = 0xff << 24;
+		*lapiclock.task_priority = 0x0;
+
+		*lapiclock.spurious_interrupt_vector = 0x11ff;
 	}
 	fn send_command(&mut self, command: u32, target: u32) {
 		*self.command_register_2 = target;
 		*self.command_register_1 = command;
-
-		/*while *self.command_register_1 & 0x1000 != 0 {
-			hint::spin_loop();
-		}*/
 	}
 }
+
+impl IOAPIC {
+	pub fn activate() {
+		let mut lock = IOAPIC.lock();
+		for idx in 0..0x10 {
+			lock.write(idx * 2 + 0x10, (idx as u32 + 0x30) | 0x800);
+			lock.write(idx * 2 + 0x11, 0xff000000);
+		}
+	}
+	pub fn write(&mut self, addr: u8, content: u32) {
+		self.register_address = addr as u32;
+		self.register_content = content;
+	}
+	pub fn read(&mut self, addr: u8) -> u32 {
+		self.register_address = addr as u32;
+		self.register_content
+	}
+}
+
 impl Deref for LAPICRegister {
 	type Target = u32;
 
@@ -71,5 +120,15 @@ impl Deref for LAPICRegister {
 impl DerefMut for LAPICRegister {
 	fn deref_mut(&mut self) -> &mut u32 {
 		&mut self.content
+	}
+}
+
+#[macro_export]
+macro_rules! lapic {
+	() => {
+		lapic!("lazybox").lock()
+	};
+	("lazybox") => {
+		crate::hw::cpu::lapic::LAPICS
 	}
 }

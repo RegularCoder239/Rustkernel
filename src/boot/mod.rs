@@ -1,38 +1,47 @@
 pub mod gop;
+mod config;
 
-use self::gop::GOPError;
 use uefi::mem::memory_map::{
 	MemoryMapOwned,
-	MemoryType,
-	MemoryMap
+	MemoryType
 };
 use uefi::boot::*;
 use uefi::*;
+use crate::errors::BootError;
 
-#[derive(Debug)]
-pub enum BootError {
-	GOPError(GOPError),
-	UEFIError(uefi::Error)
+#[derive(Copy, Clone)]
+pub struct FrameBuffer {
+	pub buffer: *mut u32,
+	pub resolution: (usize, usize)
 }
 
-impl From<GOPError> for BootError {
-	fn from(err: GOPError) -> Self {
-		Self::GOPError(err)
-	}
+pub struct UEFIResult {
+	pub frame_buffer: Option<FrameBuffer>,
+	pub config: config::UEFIConfig
 }
 
-impl From<uefi::Error> for BootError {
-	fn from(err: uefi::Error) -> Self {
-		Self::UEFIError(err)
-	}
+fn setup_services() -> Result<UEFIResult, BootError> {
+	let gop = gop::GOP::new();
+	Ok(UEFIResult {
+		frame_buffer: if let Some(mut true_gop) = gop {
+			Some(FrameBuffer {
+				buffer: true_gop.frame_buffer(),
+				resolution: true_gop.resolution()
+			})
+		} else {
+			None
+		},
+		config: config::UEFIConfig::generate()
+	})
 }
 
-pub fn boot_sequence() -> Result<MemoryMapOwned, BootError> {
-//	let gop = gop::GOP::new()?;
-	let memory_map = memory_map(MemoryType::LOADER_DATA).unwrap();
-
+pub fn boot_sequence() -> Result<(UEFIResult, MemoryMapOwned), BootError> {
 	unsafe {
-		exit_boot_services(MemoryType::LOADER_DATA);
-		Ok(memory_map)
+		Ok(
+			(
+				setup_services()?,
+				exit_boot_services(MemoryType::LOADER_DATA)
+			)
+		)
 	}
 }

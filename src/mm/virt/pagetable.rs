@@ -1,0 +1,247 @@
+use super::{
+	PagingError,
+	PageTableEntry,
+	PageDirectory,
+	kerneltable,
+	kernel_offset
+};
+use crate::mm::{
+	align_size
+};
+use crate::std::{
+	Mutex,
+	Box
+};
+use core::{
+	arch::asm,
+	ops::Index,
+	iter::*
+};
+
+#[derive(Copy, Clone)]
+pub struct PageTable {
+	pub directory: PageDirectory,
+	first_free_address: [u64; 512],
+	temporary_directories: [PageDirectory; 3],
+	temporary_index: u64,
+	physical_offset: u64,
+	initalized: bool,
+	cr3: u64
+}
+
+const TEMPORARY_ADDRESS_SPACE: u64 = 0x8000000000;
+
+static GLOBAL_PAGE_DIRECTORIES_MUTEX: Mutex<[PageDirectory; 3]> = Mutex::new(
+	[PageDirectory::EMPTY; 3]
+);
+static GLOBAL_INDEX_MUTEX: Mutex<u64> = Mutex::new(0x0);
+
+impl PageTable {
+	pub const EMPTY: PageTable = PageTable {
+		directory: PageDirectory::new(),
+		first_free_address: [0x0; 512],
+		temporary_directories: [PageDirectory::EMPTY; 0x3],
+		temporary_index: 0,
+		physical_offset: 0,
+		initalized: false,
+		cr3: 0
+	};
+	const LEVELS: u64 = 4;
+
+	pub fn new() -> PageTable {
+		let mut table = PageTable::EMPTY;
+		table.init();
+		table
+	}
+	pub fn new_boxed() -> Box<PageTable> {
+		let mut table = Box::<PageTable>::new(PageTable::EMPTY);
+		table.init();
+		table
+	}
+	pub fn as_cr3(&self) -> u64 {
+		if self.directory.as_addr() > kernel_offset() {
+			self.directory.as_addr() - kernel_offset()
+		} else {
+			self.directory.as_phys_addr()
+		}
+	}
+	pub fn init(&mut self) {
+		for idx in 0..self.temporary_directories.len() - 1 {
+			self.temporary_directories[idx as usize][0] =
+				self.temporary_directories[idx as usize + 1].as_dir_entry();
+		}
+		self.directory[1] = self.temporary_directories[0].as_dir_entry();
+		self.directory[0x20] = GLOBAL_PAGE_DIRECTORIES_MUTEX.lock()[0].as_dir_entry();
+		kerneltable::map_pagetable(self);
+		self.initalized = true;
+	}
+	pub fn load(&mut self) -> &mut PageTable {
+		let cr3 = self.as_cr3();
+		unsafe {
+			asm!("mov cr3, {}", in(reg) cr3);
+		}
+		self
+	}
+	fn flush() {
+		unsafe {
+			asm!("mov rax, cr3",
+				 "mov cr3, rax");
+		}
+	}
+	pub fn is_free(&self, virt_addr_: u64, size: usize) -> bool {
+		for (s, page_size) in virt_addr_iterator(size) {
+			let entry = self.get_page_entry(virt_addr_ + s, page_size);
+			if entry.is_some() && entry.unwrap().is_present() {
+				return false;
+			}
+		}
+		return true;
+	}
+	fn get_page_entry(&self, virt_addr_: u64, size: usize) -> Option<&PageTableEntry> {
+		let mut virt_addr = virt_addr_;
+		let mut directory: &PageDirectory = &self.directory;
+
+		for level in (size_as_page_level(size)+1..Self::LEVELS).rev() {
+			let idx = virt_addr / page_level_as_size(level) as u64;
+			virt_addr %= page_level_as_size(level) as u64;
+			directory = directory[idx as usize].dir()?;
+		}
+		Some(&directory[virt_addr as usize / size])
+	}
+	fn get_page_entry_mut(&mut self, virt_addr_: u64, size: usize) -> Option<&mut PageTableEntry> {
+		let mut virt_addr = virt_addr_;
+		let mut directory: &mut PageDirectory = &mut self.directory;
+
+		for level in (size_as_page_level(size)+1..Self::LEVELS).rev() {
+			let idx = virt_addr / page_level_as_size(level) as u64;
+			virt_addr %= page_level_as_size(level) as u64;
+			directory = directory[idx as usize].mut_dir()?;
+		}
+		Some(&mut directory[virt_addr as usize / size])
+	}
+	fn map_page(&mut self, virt_addr: u64, phys_addr: u64, size: usize) -> bool {
+		assert!(phys_addr >> 39 == 0, "Strange physical address: {:x}", phys_addr);
+		if let Some(entry) = self.get_page_entry_mut(virt_addr, size) {
+			entry.set_addr(phys_addr, size);
+			true
+		} else {
+			log::info!("Ehy");
+			false
+		}
+	}
+	fn unmap_page(&mut self, virt_addr: u64, size: usize) -> bool {
+		if let Some(entry) = self.get_page_entry_mut(virt_addr, size) {
+			entry.clear(); true
+		} else {
+			false
+		}
+	}
+	pub fn physical_address(&mut self, mut virtual_address: u64) -> Option<u64> {
+		let virtual_address_cpy = virtual_address;
+		virtual_address &= 0xffffffffffff;
+		let mut directory: Option<&mut PageDirectory> = Some(&mut self.directory);
+
+		for level in (0..Self::LEVELS).rev() {
+			let idx = virtual_address / page_level_as_size(level) as u64;
+			virtual_address %= page_level_as_size(level) as u64;
+			let dir_unpacked = directory?;
+			if dir_unpacked[idx as usize].is_present() && (!dir_unpacked[idx as usize].is_dir() || level == 0x0) {
+				return Some(dir_unpacked[idx as usize].addr());
+			} else if !dir_unpacked[idx as usize].is_present() {
+				log::error!("Attempt to gather physical address of invalid virtual address: {:x}", virtual_address_cpy);
+				return None;
+			}
+
+			directory = dir_unpacked[idx as usize].mut_dir();
+		}
+		log::error!("Attempt to gather physical address of invalid virtual address: {:x}", virtual_address_cpy);
+		return None;
+	}
+	pub fn mapped_at<X: Index<usize, Output = u64>>(&mut self, addr_space: u64, phys_addresses: X, phys_addresses_amount: usize, mut size: usize) -> Result<u64, PagingError> {
+		assert!(self.initalized, "Attempt to map in uninitalized page table.");
+		if size < 0x1000 {
+			size = 0x1000;
+		}
+
+		let free_map_idx: usize = addr_space as usize / 0x8000000000;
+		let mut first_free_address = self.first_free_address[free_map_idx] + addr_space;
+		first_free_address += size as u64 - (first_free_address % size as u64);
+		while !self.is_free(first_free_address, size) {
+			first_free_address += size as u64;
+		}
+		self.first_free_address[free_map_idx] = first_free_address + size as u64 - addr_space;
+
+		let mut idx = 0;
+		for (offset, page_size) in virt_addr_iterator(size) {
+			self.map_page(first_free_address + offset,
+						  if idx < phys_addresses_amount {
+							  phys_addresses[idx]
+						  } else {
+							  phys_addresses[phys_addresses_amount-1] + ((idx-phys_addresses_amount) * page_size) as u64
+						  },
+						  page_size);
+			idx += 1;
+		}
+
+		PageTable::flush();
+		Ok(first_free_address)
+	}
+
+	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize) -> Result<u64, PagingError> {
+		for (offset, page_size) in virt_addr_iterator(amount) {
+			self.map_page(virt_addr + offset,
+						  phys_addr + offset,
+				 page_size);
+		}
+		PageTable::flush();
+		Ok(virt_addr)
+	}
+	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> Result<(), PagingError> {
+		for (offset, page_size) in virt_addr_iterator(amount) {
+			self.unmap_page(virt_addr + offset, page_size);
+		}
+		PageTable::flush();
+		Ok(())
+	}
+	pub unsafe fn mapped_temporary(&mut self, phys_addr: u64, size: usize) -> u64 {
+		if size != 0x1000 {
+			todo!("Temporary mapping support for other sizes than 4k.");
+		}
+		self.temporary_directories[2 - (size_as_page_level(size)) as usize][1].set_addr(phys_addr, size);
+		PageTable::flush();
+		TEMPORARY_ADDRESS_SPACE + size as u64
+	}
+}
+
+const fn page_level_as_size(level: u64) -> usize {
+	(1 << (level * 9)) * 0x1000
+}
+const fn size_as_page_level(size: usize) -> u64 {
+	(size / 0x1000).trailing_zeros() as u64 / 9
+}
+
+// INFO: First parameter: Index Second Parameter: Remainder
+fn get_page_table_index(mut addr: u64, level: u64) -> (usize, u64) {
+	addr &= 0xffffffffffff;
+	let size = page_level_as_size(level-1);
+	(
+		addr as usize / size,
+  addr % size as u64
+	)
+}
+fn virt_addr_iterator(amount: usize) -> Zip<core::iter::StepBy<core::ops::Range<u64>>, Take<Repeat<usize>>> {
+	let aligned_amount = align_size(amount);
+	zip(
+		(0..amount as u64).step_by(aligned_amount),
+		repeat(aligned_amount).take(amount)
+	)
+}
+
+pub fn setup_global_table() {
+	let mut global_tables = GLOBAL_PAGE_DIRECTORIES_MUTEX.lock();
+	for idx in 0..global_tables.len() - 1 {
+		global_tables[idx as usize][0] = PageTableEntry::new_dir(
+			global_tables[idx as usize + 1].as_addr()
+		);
+	}
+}
