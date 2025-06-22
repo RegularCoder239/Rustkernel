@@ -1,3 +1,8 @@
 /target
 disk.img
 *.log
+<<<<<<< HEAD
+=======
+rustc-ice*
+*.kate-swp
+>>>>>>> 693eb75 (Gitignore update + Log file cleanup)
