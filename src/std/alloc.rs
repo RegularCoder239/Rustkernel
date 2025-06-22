@@ -21,7 +21,7 @@ pub trait PhysicalAllocator {
 pub trait VirtualMapper {
 	const DEFAULT: Self;
 
-	fn map<T>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T>;
+	fn map<T: ?Sized>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T>;
 	unsafe fn unmap(addr: u64, amount: usize);
 }
 
@@ -29,7 +29,7 @@ pub trait Allocator {
 	type VirtualMapper: VirtualMapper;
 	type PhysicalAllocator: PhysicalAllocator;
 
-	fn allocate<T>(amount: usize) -> Option<*mut T> where Self: Sized;
+	fn allocate<T: ?Sized>(amount: usize) -> Option<*mut T> where Self: Sized;
 	unsafe fn free(ptr: *const u8, amount: usize) where Self: Sized;
 }
 
@@ -62,7 +62,7 @@ impl PhysicalAllocator for PhysicalRAMAllocator {
 
 impl VirtualMapper for KernelGlobalMapper {
 	const DEFAULT: Self = Self {};
-	fn map<T>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
+	fn map<T: ?Sized>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
 		addr.mapped_global::<T>(amount)
 	}
 	unsafe fn unmap(addr: u64, amount: usize) {
@@ -75,7 +75,7 @@ impl Allocator for RAMAllocator {
 	type VirtualMapper = KernelGlobalMapper;
 	type PhysicalAllocator = PhysicalRAMAllocator;
 
-	fn allocate<T>(amount: usize) -> Option<*mut T> where Self: Sized {
+	fn allocate<T: ?Sized>(amount: usize) -> Option<*mut T> where Self: Sized {
 		unsafe {
 			KernelGlobalMapper::map(
 				PhysicalRAMAllocator::allocate_phys(amount)?,

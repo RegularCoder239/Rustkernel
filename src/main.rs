@@ -1,9 +1,17 @@
 #![feature(abi_x86_interrupt)]
 #![feature(ptr_metadata)]
 #![feature(slice_ptr_get)]
+#![feature(lang_items)]
+#![feature(rustc_attrs)]
+#![feature(fundamental)]
+#![feature(unsize)]
+#![feature(pin_coerce_unsized_trait)]
+#![feature(ptr_internals)]
 #![feature(coerce_unsized)]
-#![feature(generic_const_exprs)]
+#![feature(deref_pure_trait)]
+//#![feature(generic_const_exprs)]
 #![allow(dead_code)]
+#![allow(internal_features)]
 #![no_main]
 #![no_std]
 
@@ -59,13 +67,14 @@ fn main() -> Status {
 	*UEFI_RESULT.lock() = Some(uefi_result);
 	mm::setup(memory_map);
 	hw::cpu::setup();
-		log::info!("12");
+
 	unsafe {
+		log::info!("Setting up boot setup process.");
 		Process::new_with_stack(ProcessPrivilage::KERNEL,
 								boot_core_setup as fn() -> !)
-			.expect("Failed to create boot core setup task.")
+			.expect("Failed to crate boot setup task.")
 			.set_pid(u64::MAX)
-			.switch();
+			.jump();
 	}
 
 	unreachable!()

@@ -8,15 +8,15 @@ const GLOBAL_ADDRESS_SPACE: u64 = 0x100000000000;
 const MAP_SPACE: u64 = 0x7f8000000000;
 
 pub trait Mapped {
-	fn mapped_global<T>(&self, amount: usize) -> Option<*mut T> {
+	fn mapped_global<T: ?Sized>(&self, amount: usize) -> Option<*mut T> {
 		self.mapped_at(GLOBAL_ADDRESS_SPACE, amount)
 	}
-	fn mapped<T>(&self, amount: usize) -> Option<*mut T> {
+	fn mapped<T: ?Sized>(&self, amount: usize) -> Option<*mut T> {
 		self.mapped_at(MAP_SPACE, amount)
 	}
 
 	fn mapped_temporary<T>(&self, amount: usize) -> &'static mut T;
-	fn mapped_at<T>(&self, addr_space: u64, amount: usize) -> Option<*mut T>;
+	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T>;
 	fn unmap(&self, amount: usize);
 }
 
@@ -29,13 +29,22 @@ impl Mapped for StackVec<u64, 0x200> {
 		todo!("Temporary mapping only avaiable with one single aligned physical address.")
 	}
 
-	fn mapped_at<T>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
-		Some(current_page_table().mapped_at(
-			addr_space,
-			self,
-			self.len(),
-			amount
-		).ok()? as *mut T)
+	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
+		Some(
+			core::ptr::from_raw_parts_mut::<T>(
+				current_page_table().mapped_at(
+					addr_space,
+					self,
+					self.len(),
+					amount
+				).ok()? as *mut (),
+				core::ptr::metadata(
+					unsafe {
+						core::mem::MaybeUninit::<*const T>::zeroed().assume_init()
+					}
+				)
+			)
+		)
 	}
 
 	fn unmap(&self, _: usize) {
@@ -50,14 +59,21 @@ impl Mapped for u64 {
 		}
 	}
 
-	fn mapped_at<T>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
+	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
 		Some(
-			current_page_table().mapped_at(
-				addr_space,
+			core::ptr::from_raw_parts_mut::<T>(
+				current_page_table().mapped_at(
+					addr_space,
 					[*self],
-				1,
-				amount
-			).ok()? as *mut T,
+					1,
+					amount
+				).ok()? as *mut (),
+				core::ptr::metadata(
+					unsafe {
+						core::mem::MaybeUninit::<*const T>::zeroed().assume_init()
+					}
+				)
+			)
 		)
 	}
 
@@ -71,7 +87,7 @@ impl<T2> Mapped for *const T2 {
 		(*self as u64).mapped_temporary(amount)
 	}
 
-	fn mapped_at<T>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
+	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
 		(*self as u64).mapped_at(addr_space, amount)
 	}
 	fn unmap(&self, unused: usize) {

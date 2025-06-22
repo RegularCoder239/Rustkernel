@@ -1,6 +1,7 @@
 pub mod r#box;
 pub mod unsaferef;
 pub mod string;
+mod boxinner;
 
 use core::mem;
 use crate::std::{
@@ -13,6 +14,8 @@ use core::ops::{
 	Deref,
 	DerefMut
 };
+
+pub use boxinner::BoxInner;
 
 #[derive(Copy, Clone)]
 pub struct LazyBox<T> {

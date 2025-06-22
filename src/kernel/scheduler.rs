@@ -13,7 +13,8 @@ use crate::std::{
 	RAMAllocator,
 	hltloop,
 	Box,
-	cli
+	cli,
+	VecBase
 };
 use crate::hw::{
 	cpu
@@ -157,13 +158,6 @@ impl PartialEq for TaskState {
 }
 
 impl Process {
-	const INIT_PROCESS: Process = Process {
-		task_state: TaskState::INVALID,
-		page_table: Box::NONE,
-		r#type: ProcessType::INIT,
-		state: ProcessState::RUNNING,
-		pid: 0x0
-	};
 	pub fn new<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
 		*UID_COUNTER.lock() += 1;
 		let mut process = Process {
@@ -183,6 +177,7 @@ impl Process {
 	}
 	pub fn new_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
 		let mut process = Process::new(privilage, entry_addr)?;
+
 		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x30000)? as u64 + 0x30000);
 		Some(process)
 	}
@@ -215,7 +210,7 @@ impl Process {
 		self
 	}
 
-	pub fn switch(&mut self) {
+	pub fn switch(&'static mut self) {
 		if *PID_PER_CPU.deref_mut() == u64::MAX {
 			self.jump();
 		}
@@ -227,7 +222,7 @@ impl Process {
 		PID_PER_CPU.set(self.pid);
 		self.page_table.load();
 		unsafe {
-			crate::mm::set_current_page_table(self.page_table.deref_static());
+			crate::mm::set_current_page_table(&mut self.page_table);
 		}
 		cpu::lapic::LAPIC::end_of_interrupt();
 		self.task_state.load()
@@ -236,6 +231,7 @@ impl Process {
 	pub fn jump(&mut self) -> ! {
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);
+		//self.page_table.load();
 		self.task_state.jump()
 	}
 
@@ -265,7 +261,7 @@ pub fn r#yield() {
 		}
 
 		if let Some(unwarped_process_idx) = process_idx {
-			lock[unwarped_process_idx].switch();
+			Process::from_pid(lock[unwarped_process_idx].pid).unwrap().switch();
 		} else {
 			hltloop();
 		}

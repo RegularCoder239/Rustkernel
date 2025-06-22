@@ -1,10 +1,12 @@
 use core::ops::{
-	Index
+	Index,
+	IndexMut
 };
 use super::{
 	VecIter,
 	VecBase
 };
+use core::mem;
 
 pub struct StackVec<T, const SIZE: usize> {
 	array: [T; SIZE],
@@ -18,7 +20,6 @@ impl<T: Copy, const SIZE: usize> StackVec<T, SIZE> {
 			length: 0
 		}
 	}
-
 }
 
 impl<T: Copy + Default, const SIZE: usize> StackVec<T, SIZE> {
@@ -45,8 +46,12 @@ impl<T: Copy + Default, const SIZE: usize> StackVec<T, SIZE> {
 		vec.length = slice.len();
 		vec
 	}
+}
+
+impl<T, const SIZE: usize> StackVec<T, SIZE> {
 	pub fn push_back(&mut self, content: T) {
 		assert!(self.length < SIZE, "Capacity limit reached on StackVec.");
+		log::info!("Memsize {:x}", mem::size_of::<T>());
 		self.array[self.length] = content;
 		self.length += 1;
 	}
@@ -86,6 +91,19 @@ impl<T, const SIZE: usize> Index<usize> for &StackVec<T, SIZE> {
 	type Output = T;
 	fn index(&self, index: usize) -> &T {
 		self.array.each_ref()[index]
+	}
+}
+
+impl<T, const SIZE: usize> Index<usize> for &mut StackVec<T, SIZE> {
+	type Output = T;
+	fn index(&self, index: usize) -> &T {
+		self.array.each_ref()[index]
+	}
+}
+
+impl<T, const SIZE: usize> IndexMut<usize> for &mut StackVec<T, SIZE> {
+	fn index_mut(&mut self, index: usize) -> &mut T {
+		&mut self.array[index]
 	}
 }
 

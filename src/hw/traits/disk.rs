@@ -1,8 +1,40 @@
-use crate::std::StackVec;
+use crate::std::{
+	Vec,
+	Box,
+	Mutex
+};
+use core::ops::DerefMut;
+
+
+pub const SECTOR_SIZE: usize = 512;
+pub type Sector = Box<[u8; SECTOR_SIZE]>;
 
 pub trait Disk {
-	const BLOCK_SIZE: usize;
+	fn reset(&mut self);
+	fn read_lba(&mut self, lba: usize) -> Sector;
+}
 
-	fn read_lba(&self, lba: usize) -> [u8; Self::BLOCK_SIZE];
-	fn disks() -> StackVec<impl Disk, 64> where Self: Sized;
+pub static DISKS: Mutex<Vec<Box<dyn Disk>>> = Mutex::new(Vec::new());
+
+pub fn add_disk(mut disk: Box<dyn Disk>) {
+	DISKS.lock().push_back(disk)
+}
+
+pub fn read_lba(disk_idx: usize, lba: usize) -> Sector {
+	let mut lock = DISKS.lock();
+	let mut deref = lock.deref_mut();
+	let mut disk = deref[disk_idx].deref_mut();
+	disk.read_lba(lba)
+}
+
+pub fn setup_disks() -> ! {
+	log::info!("Setting up disks.");
+	{
+		let mut lock = DISKS.lock();
+		for mut disk in lock.deref_mut() {
+			disk.reset();
+		}
+	}
+
+	crate::std::exit();
 }

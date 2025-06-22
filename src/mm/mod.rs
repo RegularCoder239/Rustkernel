@@ -46,7 +46,6 @@ pub fn setup(memory_map: MemoryMapOwned) {
 	virt::setup_global_table();
 	current_page_table()
 		.load();
-
 	unsafe { // KERNEL REMAP. VERY DANGEROUS!!
 		core::arch::asm!("lea r8, {0}; add r8, {1}; add rbp, {1}; add rsp, {1}; jmp r8",
 						 label {},

@@ -1,3 +1,1 @@
-mod disk;
-
-pub use disk::Disk;
+pub mod disk;

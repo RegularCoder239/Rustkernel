@@ -2,8 +2,11 @@ pub mod cpu;
 pub mod graphics;
 pub mod acpi;
 pub mod pci;
-mod traits;
+pub mod traits;
 
 pub use traits::{
-	Disk
+	disk::Disk,
+	disk::add_disk,
+	disk::Sector,
+	disk::read_lba
 };

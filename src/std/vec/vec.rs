@@ -120,7 +120,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
 	}
 }
 
-impl<T, A: Allocator> VecBase<T> for Vec<T, A> {
+impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
 	}
@@ -134,7 +134,7 @@ impl<T, A: Allocator> VecBase<T> for Vec<T, A> {
 	}
 }
 
-impl<T, A: Allocator> VecBase<T> for &Vec<T, A> {
+impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for &Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
 	}
@@ -147,7 +147,7 @@ impl<T, A: Allocator> VecBase<T> for &Vec<T, A> {
 	}
 }
 
-impl<T, A: Allocator> VecBase<T> for &mut Vec<T, A> {
+impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for &mut Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
 	}

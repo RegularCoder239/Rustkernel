@@ -23,7 +23,7 @@ impl Deref for String {
 			unsafe {
 				core::slice::from_raw_parts(
 					self.content.as_ptr::<u8>(),
-					self.content.size()
+					self.content.alloc_len()
 				)
 			}
 		).expect("Attempt to pass nonutf-8 string.")

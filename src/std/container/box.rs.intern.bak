@@ -7,7 +7,6 @@ use core::{
 	ops::CoerceUnsized,
 
 	ptr::Unique,
-	ptr,
 
 	pin::PinCoerceUnsized,
 
@@ -26,7 +25,7 @@ use crate::std::{
 };
 use super::BoxInner;
 
-//#[lang = "owned_box"]
+#[lang = "owned_box"]
 #[fundamental]
 #[rustc_insignificant_dtor]
 pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
@@ -35,7 +34,7 @@ pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 	usize
 );
 
-impl<T, A: Allocator> Box<T, A> {
+impl<T> Box<T> {
 	#[inline(always)]
 	#[must_use]
 	#[cfg(not(no_global_oom_handling))]
@@ -46,12 +45,27 @@ impl<T, A: Allocator> Box<T, A> {
 		r#box.set(content);
 		r#box
 	}
-	pub fn new_uninit() -> Self {
-		Self::new_sized(mem::size_of::<T>())
-	}
+}
+
+impl<T, A: Allocator> Box<T, A> {
+
 	pub fn from_raw_address(addr: u64) -> Box<T, A> {
-		Self::from_raw_address_sized(addr, mem::size_of::<T>())
+		Self::from_raw_virt_address(
+			unsafe {
+				A::VirtualMapper::map::<u8>(stack_vec!{ addr }, mem::size_of::<T>()).unwrap() as u64
+			}
+		)
 	}
+	pub fn from_raw_virt_address(addr: u64) -> Box<T, A> {
+		Box(
+			Unique::new(
+				addr as *mut T
+			).unwrap(),
+			PhantomData,
+			mem::size_of::<T>()
+		)
+	}
+
 	pub fn set(&mut self, content: T) {
 		unsafe {
 			*(self.0.as_mut()) = content;
@@ -85,36 +99,17 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 			size
 		)
 	}
-	pub fn from_raw_address_sized(addr: u64, size: usize) -> Box<T, A> {
-		Self::from_raw_virt_address_sized(
-			unsafe {
-				A::VirtualMapper::map::<u8>(stack_vec!{ addr }, size).unwrap() as u64
-			},
-			size
-		)
-	}
-	pub fn from_raw_virt_address_sized(addr: u64, size: usize) -> Box<T, A> {
-		Box(
-			Unique::new(
-				ptr::from_raw_parts_mut::<T>(
-					addr as *mut (),
-					ptr::metadata(
-						unsafe {
-							core::mem::MaybeUninit::<*const T>::zeroed().assume_init()
-						}
-					)
-				)
-			).unwrap(),
-			PhantomData,
-			size
-		)
-	}
 	pub fn alloc_len(&self) -> usize {
 		self.2
 	}
 	pub unsafe fn new_converted<T2>(&self) -> Box<T2, A> {
 		Box::<T2, A>::from_raw_address(self.physical_address())
 	}
+	pub unsafe fn new_converted_nonboxed<T2>(content: T2) -> Box<T2, A> {
+		Box::<T2, A>::new_from_slice::<T2>(&[content])
+	}
+
+
 	pub fn physical_address(&self) -> u64 {
 		(self.0.as_ptr().addr() as u64).physical_address()
 	}
@@ -128,17 +123,13 @@ impl<T: ?Sized, A: Allocator> Deref for Box<T, A> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
-		unsafe {
-			self.0.as_ref()
-		}
+		&**self//self.content.as_ref().expect("Attempt to deref Box::NONE").deref()
 	}
 }
 
 impl<T: ?Sized, A: Allocator> DerefMut for Box<T, A> {
 	fn deref_mut(&mut self) -> &mut T {
-		unsafe {
-			self.0.as_mut()
-		}
+		&mut **self//self.content.as_mut().expect("Attempt to deref Box::NONE").deref_mut()
 	}
 }
 

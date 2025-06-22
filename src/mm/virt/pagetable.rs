@@ -120,12 +120,10 @@ impl PageTable {
 		Some(&mut directory[virt_addr as usize / size])
 	}
 	fn map_page(&mut self, virt_addr: u64, phys_addr: u64, size: usize) -> bool {
-		assert!(phys_addr >> 39 == 0, "Strange physical address: {:x}", phys_addr);
 		if let Some(entry) = self.get_page_entry_mut(virt_addr, size) {
 			entry.set_addr(phys_addr, size);
 			true
 		} else {
-			log::info!("Ehy");
 			false
 		}
 	}
