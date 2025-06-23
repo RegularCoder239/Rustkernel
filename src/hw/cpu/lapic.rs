@@ -2,11 +2,9 @@ use core::ops::{
 	Deref,
 	DerefMut
 };
-use crate::mm::{
-	Mapped
-};
 use crate::std::{
-	LazyMutex
+	LazyMutex,
+	Box
 };
 use crate::{
 	std,
@@ -48,17 +46,11 @@ pub struct IOAPIC {
 	register_content: u32
 }
 
-pub static LAPICS: LazyMutex<&mut LAPIC> = LazyMutex::new(
-	|| {
-		unsafe {
-			&mut *0xfee00000_u64.mapped_global::<LAPIC>(0x1000).expect("Failed to map LAPIC.")
-		}
-	}
+pub static LAPICS: LazyMutex<Box<LAPIC>> = LazyMutex::new(
+	|| Box::from_raw_address(0xfee00000)
 );
-pub static IOAPIC: LazyMutex<&mut IOAPIC> = LazyMutex::new(
-	|| unsafe {
-			&mut *(0xfec00000_u64.mapped_global::<IOAPIC>(0x1000).expect("Failed to map IOAPIC."))
-	   }
+pub static IOAPIC: LazyMutex<Box<IOAPIC>> = LazyMutex::new(
+	|| Box::from_raw_address(0xfec00000)
 );
 
 impl LAPIC {

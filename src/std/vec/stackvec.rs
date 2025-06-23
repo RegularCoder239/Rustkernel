@@ -61,9 +61,6 @@ impl<T, const SIZE: usize> VecBase<T> for StackVec<T, SIZE> {
 	fn len(&self) -> usize {
 		self.length
 	}
-	fn index_ptr(&self, index: usize) -> *const T {
-		&self.array[index] as *const T
-	}
 	fn index_ptr_mut(&mut self, index: usize) -> *mut T {
 		&mut self.array[index] as *mut T
 	}
@@ -71,9 +68,6 @@ impl<T, const SIZE: usize> VecBase<T> for StackVec<T, SIZE> {
 impl<T, const SIZE: usize> VecBase<T> for &StackVec<T, SIZE> {
 	fn len(&self) -> usize {
 		self.length
-	}
-	fn index_ptr(&self, index: usize) -> *const T {
-		&self.array[index] as *const T
 	}
 	fn index_ptr_mut(&mut self, _: usize) -> *mut T {
 		todo!("Attempt to index readonly Stackvec as mutable.")
@@ -109,7 +103,7 @@ impl<T, const SIZE: usize> IndexMut<usize> for &mut StackVec<T, SIZE> {
 
 impl<'vec, T: Copy + 'vec, const SIZE: usize> IntoIterator for &'vec StackVec<T, SIZE> {
 	type Item = &'vec T;
-	type IntoIter = VecIter<'vec, T, &'vec StackVec<T, SIZE>>;
+	type IntoIter = VecIter<'vec, T, StackVec<T, SIZE>>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter::new(self)

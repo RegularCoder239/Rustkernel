@@ -40,9 +40,9 @@ impl Header {
 impl Box<Header> {
 	fn header_type_0(&self) -> Option<Box<HeaderType0>> {
 		if self.header_type == 0 {
-			unsafe {
-				Some(self.new_converted::<HeaderType0>())
-			}
+			Some(
+				Box::from_raw_address(self.physical_address())
+			)
 		} else {
 			None
 		}

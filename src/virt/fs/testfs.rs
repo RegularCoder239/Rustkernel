@@ -19,7 +19,7 @@ impl FileStructure for TestFS {
 			return Result::Err(FSError::OOBRead);
 		} else {
 			Ok(
-				Box::new_from_slice(
+				Box::new_slice(
 					(&Self::TESTFS_CONTENT[offset..offset+len.min(Self::TESTFS_CONTENT.len() - offset)]).as_bytes()
 				)
 			)

@@ -14,7 +14,7 @@ impl<T> UnsafeRef<T> {
 		}
 	}
 
-	pub fn get(&self) -> &mut T {
+	pub fn get(&self) -> &'static mut T {
 		unsafe {
 			&mut *self.ptr
 		}

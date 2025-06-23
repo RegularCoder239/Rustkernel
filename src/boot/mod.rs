@@ -36,12 +36,13 @@ fn setup_services() -> Result<UEFIResult, BootError> {
 }
 
 pub fn boot_sequence() -> Result<(UEFIResult, MemoryMapOwned), BootError> {
-	unsafe {
-		Ok(
-			(
-				setup_services()?,
+	Ok(
+		(
+			setup_services()?,
+			unsafe {
 				exit_boot_services(MemoryType::LOADER_DATA)
-			)
+			}
 		)
-	}
+	)
+
 }

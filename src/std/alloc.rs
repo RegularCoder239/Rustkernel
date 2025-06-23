@@ -61,7 +61,13 @@ impl PhysicalAllocator for PhysicalRAMAllocator {
 impl VirtualMapper for KernelGlobalMapper {
 	const DEFAULT: Self = Self {};
 	fn map<T: ?Sized>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
-		addr.mapped_global::<T>(amount)
+		addr.mapped_global::<T>(
+			if amount < 0x200000 && amount > 0x10000 {
+				0x200000
+			} else {
+				amount + 0x1000 - (amount % 0x1000)
+			}
+		)
 	}
 	unsafe fn unmap(_: u64, _: usize) {
 		log::info!("Unmapped");
@@ -111,9 +117,7 @@ impl<T, A: Allocator> Allocation<T, A> {
 		}
 	}
 	pub fn as_ref(&self) -> &T {
-		unsafe {
-			&*self.content
-		}
+		self.as_mut()
 	}
 }
 

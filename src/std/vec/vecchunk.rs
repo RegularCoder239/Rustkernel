@@ -55,7 +55,7 @@ impl<T, A: Allocator> Index<usize> for VecChunk<T, A> {
 }
 
 impl<T, A: Allocator> IndexMut<usize> for VecChunk<T, A> {
-	fn index_mut(&mut self, index: usize) -> & mut T {
+	fn index_mut(&mut self, index: usize) -> &mut T {
 		if self.capacity <= index {
 			panic!("Attempt to index {} in a vecchunk with length {}.", index, self.capacity);
 		}

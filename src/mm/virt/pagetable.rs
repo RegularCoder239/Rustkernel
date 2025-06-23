@@ -5,9 +5,6 @@ use super::{
 	kerneltable,
 	kernel_offset
 };
-use crate::mm::{
-	align_size
-};
 use crate::std::{
 	Mutex,
 	Box
@@ -88,9 +85,9 @@ impl PageTable {
 				 "mov cr3, rax");
 		}
 	}
-	pub fn is_free(&self, virt_addr_: u64, size: usize) -> bool {
-		for (s, page_size) in virt_addr_iterator(size) {
-			let entry = self.get_page_entry(virt_addr_ + s, page_size);
+	pub fn is_free(&self, virt_addr: u64, size: usize) -> bool {
+		for (s, page_size) in virt_addr_iterator(virt_addr, size) {
+			let entry = self.get_page_entry(virt_addr + s, page_size);
 			if entry.is_some() && entry.unwrap().is_present() {
 				return false;
 			}
@@ -170,7 +167,7 @@ impl PageTable {
 		self.first_free_address[free_map_idx] = first_free_address + size as u64 - addr_space;
 
 		let mut idx = 0;
-		for (offset, page_size) in virt_addr_iterator(size) {
+		for (offset, page_size) in virt_addr_iterator(first_free_address, size) {
 			self.map_page(first_free_address + offset,
 						  if idx < phys_addresses_amount {
 							  phys_addresses[idx]
@@ -186,7 +183,7 @@ impl PageTable {
 	}
 
 	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize) -> Result<u64, PagingError> {
-		for (offset, page_size) in virt_addr_iterator(amount) {
+		for (offset, page_size) in virt_addr_iterator(phys_addr, amount) {
 			self.map_page(virt_addr + offset,
 						  phys_addr + offset,
 				 page_size);
@@ -195,7 +192,7 @@ impl PageTable {
 		Ok(virt_addr)
 	}
 	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> bool {
-		for (offset, page_size) in virt_addr_iterator(amount) {
+		for (offset, page_size) in virt_addr_iterator(virt_addr, amount) {
 			if !self.unmap_page(virt_addr + offset, page_size) {
 				return false;
 			}
@@ -229,8 +226,8 @@ fn get_page_table_index(mut addr: u64, level: u64) -> (usize, u64) {
   addr % size as u64
 	)
 }
-fn virt_addr_iterator(amount: usize) -> Zip<core::iter::StepBy<core::ops::Range<u64>>, Take<Repeat<usize>>> {
-	let aligned_amount = align_size(amount);
+fn virt_addr_iterator(_: u64, amount: usize) -> Zip<core::iter::StepBy<core::ops::Range<u64>>, Take<Repeat<usize>>> {
+	let aligned_amount = 0x1000;
 	zip(
 		(0..amount as u64).step_by(aligned_amount),
 		repeat(aligned_amount).take(amount)

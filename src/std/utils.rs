@@ -49,21 +49,25 @@ pub fn sti() {
 #[macro_export]
 macro_rules! call_asm {
 	($meth: expr, $arg1: expr) => {
-		core::arch::asm!("mov r8, {0}",
-						 "add r8, {1}",
-						 "call r8",
-						 in(reg) $meth,
-						 in(reg) crate::mm::kerneltable::kernel_offset(),
-						 in("rdi") $arg1)
+		unsafe {
+			core::arch::asm!("mov r8, {0}",
+							"add r8, {1}",
+							"call r8",
+							in(reg) $meth,
+							in(reg) crate::mm::kerneltable::kernel_offset(),
+							in("rdi") $arg1)
+		}
 	};
 	($meth: expr, $arg1: expr, $arg2: expr) => {
-		core::arch::asm!("mov r8, {0}",
-						 "add r8, {1}",
-						 "call r8",
-						 in(reg) $meth,
-						 in(reg) crate::mm::kerneltable::kernel_offset(),
-						 in("rdi") $arg1,
-						 in("rsi") $arg2)
+		unsafe {
+			core::arch::asm!("mov r8, {0}",
+							"add r8, {1}",
+							"call r8",
+							in(reg) $meth,
+							in(reg) crate::mm::kerneltable::kernel_offset(),
+							in("rdi") $arg1,
+							in("rsi") $arg2)
+		}
 	}
 }
 

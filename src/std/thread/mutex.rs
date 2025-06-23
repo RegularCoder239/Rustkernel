@@ -26,6 +26,10 @@ impl<T> Mutex<T> {
 		}
 	}
 
+	pub fn is_locked(&self) -> bool {
+		self.lock.is_locked()
+	}
+
 	pub fn lock(&self) -> MutexGuard<'_, T> {
 		if self.lock.is_locked() {
 			log::debug!("Mutex deadlock");
@@ -43,11 +47,16 @@ impl<T> Mutex<T> {
 		}
 	}
 
-	pub unsafe fn unlock(&self) {
+	fn unlock(&self) {
 		self.lock.unlock()
 	}
 
-	pub unsafe fn get(&self) -> &mut T {
+	fn get(&self) -> &mut T {
+		unsafe {
+			&mut *self.content.get()
+		}
+	}
+	pub unsafe fn get_static(&self) -> &'static mut T {
 		unsafe {
 			&mut *self.content.get()
 		}
@@ -56,10 +65,8 @@ impl<T> Mutex<T> {
 
 impl<T> Mutex<Option<T>> {
 	pub fn lock_opt(&self) -> OptMutexGuard<'_, T> {
-		unsafe {
-			while (&mut *self.content.get()).is_none() {
-				r#yield();
-			}
+		while self.get().is_none() {
+			r#yield();
 		}
 		OptMutexGuard::new(self)
 	}
@@ -79,25 +86,19 @@ impl<'mutex, T> Deref for MutexGuard<'mutex, T> {
 	type Target = T;
 
 	fn deref(&self) -> &'mutex T {
-		unsafe {
-			&*self.mutex.content.get()
-		}
+		self.mutex.get()
 	}
 }
 
 impl<'mutex, T> DerefMut for MutexGuard<'mutex, T> {
 	fn deref_mut(&mut self) -> &'mutex mut T {
-		unsafe {
-			&mut *self.mutex.content.get()
-		}
+		self.mutex.get()
 	}
 }
 
 impl<T> Drop for MutexGuard<'_, T> {
 	fn drop(&mut self) {
-		unsafe {
-			self.mutex.unlock()
-		}
+		self.mutex.unlock()
 	}
 }
 
@@ -133,8 +134,6 @@ impl<'mutex, T> DerefMut for OptMutexGuard<'mutex, T> {
 
 impl<T> Drop for OptMutexGuard<'_, T> {
 	fn drop(&mut self) {
-		unsafe {
-			self.mutex.unlock()
-		}
+		self.mutex.unlock()
 	}
 }

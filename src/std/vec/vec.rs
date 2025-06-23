@@ -16,7 +16,6 @@ use core::{
 
 pub trait VecBase<T> {
 	fn len(&self) -> usize;
-	fn index_ptr(&self, index: usize) -> *const T;
 	fn index_ptr_mut(&mut self, index: usize) -> *mut T;
 }
 
@@ -124,10 +123,6 @@ impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
 	}
-	fn index_ptr(&self, index: usize) -> *const T {
-		let (chunk, remainder) = self.index_chunk(index);
-		chunk.index(remainder) as *const T
-	}
 	fn index_ptr_mut(&mut self, index: usize) -> *mut T {
 		let (chunk, remainder) = self.index_chunk_mut(index);
 		chunk.index_mut(remainder) as *mut T
@@ -138,22 +133,14 @@ impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for &Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
 	}
-	fn index_ptr(&self, index: usize) -> *const T {
-		let (chunk, remainder) = self.index_chunk(index);
-		chunk.index(remainder) as *const T
-	}
 	fn index_ptr_mut(&mut self, _: usize) -> *mut T {
-		todo!("Unable to index ptr mutable from readonly vecbase.");
+		panic!("Unable to index ptr mutable from readonly vecbase.");
 	}
 }
 
 impl<T, A: Allocator> crate::std::vec::vec::VecBase<T> for &mut Vec<T, A> {
 	fn len(&self) -> usize {
 		self.length
-	}
-	fn index_ptr(&self, index: usize) -> *const T {
-		let (chunk, remainder) = self.index_chunk(index);
-		chunk.index(remainder) as *const T
 	}
 	fn index_ptr_mut(&mut self, index: usize) -> *mut T {
 		let (chunk, remainder) = self.index_chunk_mut(index);
@@ -183,7 +170,6 @@ impl<T, A: Allocator> Index<usize> for &mut Vec<T, A> {
 		chunk.index(remainder)
 	}
 }
-
 impl<T, A: Allocator> IndexMut<usize> for Vec<T, A> {
 	fn index_mut(&mut self, index: usize) -> &mut T {
 		let (chunk, remainder) = self.index_chunk_mut(index);
@@ -191,7 +177,7 @@ impl<T, A: Allocator> IndexMut<usize> for Vec<T, A> {
 	}
 }
 impl<T, A: Allocator> IndexMut<usize> for &mut Vec<T, A> {
-	fn index_mut(&mut self, index: usize) -> &mut T {
+	fn index_mut<'vec>(&'vec mut self, index: usize) -> &'vec mut T {
 		let (chunk, remainder) = self.index_chunk_mut(index);
 		chunk.index_mut(remainder)
 	}
@@ -208,7 +194,7 @@ impl<T: Clone, A: Allocator> IntoIterator for Vec<T, A> {
 
 impl<'vec, T: 'vec, A: Allocator> IntoIterator for &'vec Vec<T, A> {
 	type Item = &'vec T;
-	type IntoIter = VecIter<'vec, T, &'vec Vec<T, A>>;
+	type IntoIter = VecIter<'vec, T, Vec<T, A>>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter::new(self)

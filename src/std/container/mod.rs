@@ -37,10 +37,7 @@ impl<T> LazyBox<T> {
 	pub fn get(&mut self) -> &T {
 		if self.content.is_none() {
 			self.content = Some(
-				//(self.method)()
-				unsafe {
-					crate::add_meth!(self.method, fn() -> T, crate::mm::kernel_offset())
-				}()
+				(self.method)()
 			);
 		}
 		self.content.as_ref().unwrap()

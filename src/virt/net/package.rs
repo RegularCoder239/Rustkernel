@@ -53,12 +53,16 @@ impl IPHeader {
 
 	pub fn calculate_checksum(&mut self) {
 		let mut checksum = 0_u64;
-		for d in unsafe { core::slice::from_raw_parts(
-			&self.version_hlen as *const u8 as *const u16,
-			10
-		) } {
-			checksum += *d as u64;
-		}
+		checksum += self.version_hlen as u64;
+		checksum += self.type_of_service as u64;
+		checksum += self.len as u64;
+		checksum += self.id as u64;
+		checksum += self.fragment_offset as u64;
+		checksum += self.time_to_live as u64;
+		checksum += self.checksum as u64;
+		checksum += self.protocol as u64;
+		checksum += self.source_ip as u64;
+		checksum += self.dest_ip as u64;
 		checksum += (checksum >> 16) & 0xf;
 		self.checksum = !(checksum & 0xffff) as u16;
 	}

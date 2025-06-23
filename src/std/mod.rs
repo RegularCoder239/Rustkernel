@@ -21,6 +21,7 @@ pub use container::{
 
 pub use thread::{
 	mutex::Mutex,
+	mutex::MutexGuard,
 	mutex::OptMutexGuard,
 	lock::Lock,
 	lazymutex::LazyMutex,

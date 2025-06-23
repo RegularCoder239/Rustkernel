@@ -3,7 +3,6 @@ use crate::mm::{
 };
 use crate::kernel::scheduler::{
 	Process,
-	ProcessPrivilage
 };
 use crate::{
 	std,
@@ -29,10 +28,7 @@ pub fn smp_core_meth() -> ! {
 
 	mm::per_core_setup();
 
-	Process::new_with_stack(ProcessPrivilage::KERNEL,
-							smp_core_setup as fn() -> !)
-		.expect("Failed to create idle task")
-		.jump()
+	Process::spawn_init_process(smp_core_setup as fn() -> !)
 }
 
 fn smp_core_setup() -> ! {

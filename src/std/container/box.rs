@@ -52,22 +52,6 @@ impl<T, A: Allocator> Box<T, A> {
 }
 
 impl<T: ?Sized, A: Allocator> Box<T, A> {
-	pub fn new_from_slice<T2>(data: &[T2]) -> Box<T, A> {
-		let r#box = Self::new_sized(data.len() * mem::size_of::<T2>());
-		let u8data = unsafe {
-			&*(data as *const [T2] as *const [u8])
-		};
-		let unwrapped_content = unsafe {
-			&mut *core::ptr::slice_from_raw_parts_mut(
-				r#box.as_ptr::<u8>(),
-				r#box.alloc_len()
-			 )
-		};
-		for idx in 0..data.len() * mem::size_of::<T2>() {
-			unwrapped_content[idx] = u8data[idx];
-		}
-		r#box
-	}
 	pub fn new_sized(size: usize) -> Box<T, A> {
 		Box(
 			Unique::new(
@@ -102,15 +86,36 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn alloc_len(&self) -> usize {
 		self.2
 	}
-	pub unsafe fn new_converted<T2>(&self) -> Box<T2, A> {
-		Box::<T2, A>::from_raw_address(self.physical_address())
-	}
 	pub fn physical_address(&self) -> u64 {
 		(self.0.as_ptr().addr() as u64).physical_address()
 	}
-
 	pub fn as_ptr<T2>(&self) -> *mut T2 {
 		self.0.as_ptr() as *mut T2
+	}
+}
+
+impl<T: Copy, A: Allocator> Box<[T], A> {
+	pub fn new_slice(data: &[T]) -> Box<[T], A> {
+		let r#box = Self::new_sized(data.len() * mem::size_of::<T>());
+		let unwrapped_content = unsafe {
+			core::slice::from_raw_parts_mut(
+				r#box.0.as_ptr() as *mut T,
+				data.len()
+			)
+		};
+		for idx in 0..data.len() {
+			unwrapped_content[idx] = data[idx];
+		}
+		r#box
+	}
+	pub fn as_slice(&mut self) -> &mut [T] {
+		unsafe {
+			log::info!("{:x} {:x}", self.0.as_ptr() as *mut T as u64, self.alloc_len() / mem::size_of::<T>());
+			core::slice::from_raw_parts_mut(
+				self.0.as_ptr() as *mut T,
+				self.alloc_len() / mem::size_of::<T>()
+			)
+		}
 	}
 }
 

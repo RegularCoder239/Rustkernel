@@ -30,7 +30,6 @@ use mm::current_page_table;
 use boot::UEFIResult;
 use std::Mutex;
 use crate::kernel::scheduler::{
-	ProcessPrivilage,
 	Process
 };
 use crate::virt::fs::{
@@ -64,21 +63,16 @@ fn main() -> Status {
 	mm::setup(memory_map);
 	hw::cpu::setup();
 
-	unsafe {
-		log::info!("Setting up boot setup process.");
-		Process::new_with_stack(ProcessPrivilage::KERNEL,
-								boot_core_setup as fn() -> !)
-			.expect("Failed to crate boot setup task.")
-			.set_pid(u64::MAX)
-			.jump();
-	}
+	log::info!("Setting up boot setup process.");
+	Process::spawn_init_process(boot_core_setup as fn() -> !);
 
 	unreachable!()
 }
 
 fn boot_core_setup() -> ! {
+	log::info!("Boot process successfully started.");
+	std::cli();
 	kernel::boot_core_setup();
-
 
 	let fstest = virt::fs::TestFS {};
 	log::info!("{}",
@@ -110,9 +104,6 @@ fn panic(i: &PanicInfo<'_>) -> ! {
 		lapic!().poweroff_other_cpus();
 	}
 
-	unsafe {
-		loop {
-			asm!("cli; hlt");
-		}
-	}
+	std::cli();
+	std::hltloop();
 }

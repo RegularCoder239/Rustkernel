@@ -2,19 +2,20 @@ use core::{
 	marker::PhantomData,
 
 	ops::Index,
+	ops::IndexMut
 };
 use super::{
 	vec::VecBase
 };
 
 pub struct VecIter<'vec, T, V> {
-	vec: V,
+	vec: &'vec V,
 	phantom: PhantomData<&'vec T>,
 	idx: usize
 }
 pub struct VecIterMut<'vec, T, V> {
 	vec: V,
-	phantom: PhantomData<&'vec T>,
+	phantom: PhantomData<&'vec mut T>,
 	idx: usize
 }
 pub struct VecIterNonRef<T, V> {
@@ -24,7 +25,7 @@ pub struct VecIterNonRef<T, V> {
 }
 
 impl<'vec, T, V: Index<usize>> VecIter<'vec, T, V> {
-	pub fn new(vec: V) -> VecIter<'vec, T, V> {
+	pub fn new(vec: &'vec V) -> VecIter<'vec, T, V> {
 		VecIter {
 			vec: vec,
 			phantom: PhantomData,
@@ -33,7 +34,7 @@ impl<'vec, T, V: Index<usize>> VecIter<'vec, T, V> {
 	}
 }
 
-impl<'vec, T, V: VecBase<T> + Index<usize, Output = T>> Iterator for VecIter<'vec, T, V> {
+impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + 'vec> Iterator for VecIter<'vec, T, V> {
 	type Item = &'vec T;
 
 	fn next(&mut self) -> Option<&'vec T> {
@@ -42,14 +43,12 @@ impl<'vec, T, V: VecBase<T> + Index<usize, Output = T>> Iterator for VecIter<'ve
 			None
 		} else {
 			self.idx += 1;
-			unsafe {
-				Some(&*self.vec.index_ptr(self.idx - 1))
-			}
+			Some(self.vec.index(self.idx - 1))
 		}
 	}
 }
 
-impl<'vec, T, V: Index<usize>> VecIterMut<'vec, T, V> {
+impl<'vec, T, V: Index<usize> + IndexMut<usize>> VecIterMut<'vec, T, V> {
 	pub fn new(vec: V) -> VecIterMut<'vec, T, V> {
 		VecIterMut {
 			vec: vec,
@@ -59,7 +58,7 @@ impl<'vec, T, V: Index<usize>> VecIterMut<'vec, T, V> {
 	}
 }
 
-impl<'vec, T, V: VecBase<T> + Index<usize, Output = T>> Iterator for VecIterMut<'vec, T, V> {
+impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + IndexMut<usize> + 'vec> Iterator for VecIterMut<'vec, T, V> {
 	type Item = &'vec mut T;
 
 	fn next(&mut self) -> Option<&'vec mut T> {
@@ -68,9 +67,11 @@ impl<'vec, T, V: VecBase<T> + Index<usize, Output = T>> Iterator for VecIterMut<
 			None
 		} else {
 			self.idx += 1;
-			unsafe {
-				Some(&mut *self.vec.index_ptr_mut(self.idx - 1))
-			}
+			Some(
+				unsafe {
+					&mut *(self.vec.index_ptr_mut(self.idx - 1))
+				}
+			)
 		}
 	}
 }

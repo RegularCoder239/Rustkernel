@@ -3,7 +3,6 @@ use crate::mm::{
 };
 use crate::{
 	allocate,
-	vec,
 	call_asm
 };
 use crate::std::{
@@ -13,7 +12,7 @@ use crate::std::{
 	RAMAllocator,
 	hltloop,
 	Box,
-	cli,
+	cli
 };
 use crate::hw::{
 	cpu
@@ -67,9 +66,7 @@ pub trait RipCast {
 
 static STATE_PER_CPU: PerCpu<TaskState> = PerCpu::new(TaskState::INVALID);
 static PID_PER_CPU: PerCpu<u64> = PerCpu::new(u64::MAX);
-static PROCESSES: Mutex<Vec<Process>> = Mutex::new(
-	vec!()
-);
+static PROCESSES: Mutex<Vec<Process>> = Mutex::new(Vec::new());
 static UID_COUNTER: Mutex<u64> = Mutex::new(0x0);
 
 #[link(name="switcher")]
@@ -136,17 +133,16 @@ impl TaskState {
 
 	pub fn jump(&self) -> ! {
 		*STATE_PER_CPU.deref_mut() = *self;
-		unsafe {
-			call_asm!(jump_state, self);
-		}
+
+		call_asm!(jump_state, self);
+
 		panic!("Jumping failed.");
 	}
 	pub fn load(&self) {
 		let last_state = &mut STATE_PER_CPU.deref_mut();
 		*STATE_PER_CPU.deref_mut() = *self;
-		unsafe {
-			call_asm!(load_state, self, last_state)
-		}
+
+		call_asm!(load_state, self, last_state)
 	}
 }
 
@@ -180,6 +176,13 @@ impl Process {
 		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x30000)? as u64 + 0x30000);
 		Some(process)
 	}
+	pub fn spawn_init_process<EntryAddr: RipCast>(entry_addr: EntryAddr) -> ! {
+		let mut process = Process::new(ProcessPrivilage::KERNEL, entry_addr).expect("Failed to crate boot setup process.");
+		process.set_pid(u64::MAX);
+		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x15000).expect("Failed to allocate stack for boot setup process") as u64 + 0x15000);
+
+		process.switch_init()
+	}
 	pub fn spawn_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<u64> {
 		let process = Self::new_with_stack(privilage, entry_addr)?;
 		let pid = process.pid;
@@ -187,10 +190,11 @@ impl Process {
 		Some(pid)
 	}
 	pub fn from_pid(pid: u64) -> Option<&'static mut Process> {
-		let processes = PROCESSES.lock();
 		Some(
 			unsafe {
-				PROCESSES.get().index_mut((*processes).into_iter().position(|p| p.pid == pid)?)
+				PROCESSES.get_static().index_mut(
+					PROCESSES.get_static().into_iter().position(|p| p.pid == pid)?
+				)
 			}
 		)
 	}
@@ -210,13 +214,11 @@ impl Process {
 	}
 
 	pub fn switch(&'static mut self) {
-		if *PID_PER_CPU.deref_mut() == u64::MAX {
-			self.jump();
+		if let Some(current_process) = current_process() {
+			if current_process.state == ProcessState::RUNNING {
+				current_process.state = ProcessState::IDLE;
+			}
 		}
-		let current_process = Self::from_pid(*PID_PER_CPU.deref_mut()).expect("Bug 28734");
-		if current_process.state == ProcessState::RUNNING {
-			current_process.state = ProcessState::IDLE;
-		};
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);
 		self.page_table.load();
@@ -227,10 +229,9 @@ impl Process {
 		self.task_state.load()
 	}
 
-	pub fn jump(&mut self) -> ! {
+	fn switch_init(&mut self) -> ! {
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);
-		//self.page_table.load();
 		self.task_state.jump()
 	}
 
@@ -241,7 +242,7 @@ impl Process {
 		}
 	}
 
-	pub unsafe fn set_pid(&mut self, pid: u64) -> &mut Self {
+	fn set_pid(&mut self, pid: u64) -> &mut Self {
 		self.pid = pid;
 		self
 	}
@@ -252,22 +253,27 @@ pub fn init_yield_timer() {
 }
 
 pub fn r#yield() {
-	if let Some(lock) = PROCESSES.try_lock() {
-		cli();
-		let process_idx = lock.into_iter().position(|process| process.state == ProcessState::IDLE && process.task_state != *STATE_PER_CPU.deref_mut());
-		unsafe {
-			PROCESSES.unlock();
-		}
+	if PROCESSES.is_locked() {
+		return;
+	}
+	cli();
+	let process_idx = PROCESSES.lock().into_iter().position(|process| process.state == ProcessState::IDLE && process.task_state != *STATE_PER_CPU.deref_mut());
 
-		if let Some(unwarped_process_idx) = process_idx {
-			Process::from_pid(lock[unwarped_process_idx].pid).unwrap().switch();
-		} else {
-			hltloop();
+	if let Some(unwarped_process_idx) = process_idx {
+		unsafe {
+			PROCESSES.get_static().index_mut(unwarped_process_idx).switch();
 		}
+	} else {
+		hltloop();
 	}
 }
 
+pub fn current_process() -> Option<&'static mut Process> {
+	Process::from_pid(*PID_PER_CPU.deref_mut())
+}
+
 pub fn exit_current_process() -> ! {
-	Process::from_pid(*PID_PER_CPU.deref_mut()).expect("Bug 28734")
+	current_process()
+		.expect("Attempt to kill boot setup task.")
 		.kill()
 }

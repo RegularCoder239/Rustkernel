@@ -21,14 +21,12 @@ trait NetworkDeviceTrait {
 	fn send_package(&mut self, frame: *mut u8, len: usize);
 }
 
-pub struct NetworkControllerStruct(HeaderType0);
-
 enum Device {
 	RTL8139(Box<RTL8139>),
 	Unknown
 }
 
-pub type NetworkController = Box<NetworkControllerStruct>;
+pub struct NetworkController(Box<HeaderType0>);
 
 pub struct NetworkDevice {
 	pci_header: NetworkController,
@@ -37,16 +35,22 @@ pub struct NetworkDevice {
 
 pub static DEVICES: Mutex<Vec<NetworkDevice>> = Mutex::new(Vec::new());
 
+impl NetworkController {
+	pub fn from_raw_address(addr: u64) -> NetworkController {
+		NetworkController(
+			Box::from_raw_address(addr)
+		)
+	}
+}
+
 impl DeviceTrait for NetworkController {
 	fn specific_scan(&self) {
 		DEVICES.lock().push_back(NetworkDevice {
-			pci_header: unsafe {
-				Box::new_converted(self)
-			},
 			device: match self.0.header.device_id as u32 | ((self.0.header.vendor_id as u32) << 16) {
 				0x10ec8139 => Device::RTL8139(Box::<RTL8139>::from_raw_address(self.0.bar_addresses[1] as u64)),
 				_ => Device::Unknown
-			}
+			},
+			pci_header: NetworkController::from_raw_address(self.0.physical_address())
 		});
 	}
 }
