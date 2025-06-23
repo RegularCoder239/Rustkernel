@@ -1,0 +1,9 @@
+# Rustkernel
+## Warning
+This kernel isn't designed for production and hasn't been tested
+for real hardware yet. It has many flaws, that weren't been fixed yet.
+Please use a VM for testing.
+## Requirements
+* 64 bit X86_64 CPU
+* 64 MB RAM
+* Optional: Network RTL8139
