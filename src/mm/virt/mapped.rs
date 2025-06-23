@@ -17,7 +17,7 @@ pub trait Mapped {
 
 	fn mapped_temporary<T>(&self, amount: usize) -> &'static mut T;
 	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T>;
-	fn unmap(&self, amount: usize);
+	fn unmap(&self, amount: usize) -> bool;
 }
 
 pub trait Address {
@@ -47,7 +47,7 @@ impl Mapped for StackVec<u64, 0x200> {
 		)
 	}
 
-	fn unmap(&self, _: usize) {
+	fn unmap(&self, _: usize) -> bool {
 		todo!("Unmapping only makes sense for a single address.")
 	}
 }
@@ -77,8 +77,8 @@ impl Mapped for u64 {
 		)
 	}
 
-	fn unmap(&self, amount: usize) {
-		current_page_table().unmap(*self, amount);
+	fn unmap(&self, amount: usize) -> bool {
+		current_page_table().unmap(*self, amount)
 	}
 }
 
@@ -90,7 +90,7 @@ impl<T2> Mapped for *const T2 {
 	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
 		(*self as u64).mapped_at(addr_space, amount)
 	}
-	fn unmap(&self, unused: usize) {
+	fn unmap(&self, unused: usize) -> bool {
 		(*self as u64).unmap(unused)
 	}
 }
@@ -122,7 +122,7 @@ impl Address for u64 {
 	}
 }
 
-impl<T, const Size: usize> Address for [T; Size] {
+impl<T, const SIZE: usize> Address for [T; SIZE] {
 	fn physical_address(&self) -> u64 {
 		self.as_slice().as_ptr().physical_address()
 	}

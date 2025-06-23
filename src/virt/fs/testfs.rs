@@ -4,7 +4,6 @@ use super::{
 	FSError
 };
 use crate::std::{
-	Allocation,
 	Box
 };
 

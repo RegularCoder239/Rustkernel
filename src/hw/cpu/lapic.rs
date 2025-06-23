@@ -66,7 +66,7 @@ impl LAPIC {
 	pub fn init_non_boot_cpus(startup_addr: u32) {
 		let mut l = LAPICS.lock();
 		l.send_command(0xc4500, 0x0);
-		l.send_command(0xc0600 + 8, 0x0);
+		l.send_command(0xc0600 + (startup_addr / 0x1000), 0x0);
 	}
 	pub fn poweroff_other_cpus(&mut self) {
 		self.send_command(0xc8500, 0x0);

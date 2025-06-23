@@ -1,17 +1,12 @@
 #![feature(abi_x86_interrupt)]
-#![feature(ptr_metadata)]
-#![feature(slice_ptr_get)]
-#![feature(lang_items)]
-#![feature(rustc_attrs)]
-#![feature(fundamental)]
-#![feature(unsize)]
-#![feature(pin_coerce_unsized_trait)]
-#![feature(ptr_internals)]
 #![feature(coerce_unsized)]
-#![feature(deref_pure_trait)]
-//#![feature(generic_const_exprs)]
+#![feature(ptr_internals)]
+#![feature(ptr_metadata)]
+#![feature(unsize)]
+
 #![allow(dead_code)]
 #![allow(internal_features)]
+
 #![no_main]
 #![no_std]
 
@@ -59,6 +54,7 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 }
 
 #[entry]
+#[allow(unreachable_code)]
 fn main() -> Status {
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");

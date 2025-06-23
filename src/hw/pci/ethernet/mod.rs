@@ -14,7 +14,6 @@ use core::{
 	ops::DerefMut
 };
 use rtl8139::RTL8139;
-use crate::virt::net;
 
 trait NetworkDeviceTrait {
 	fn setup(&mut self);

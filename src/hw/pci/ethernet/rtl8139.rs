@@ -2,7 +2,6 @@ use super::{
 	NetworkDeviceTrait
 };
 use crate::mm::Address;
-use crate::virt::net;
 
 #[repr(C, packed)]
 pub struct RTL8139Registers {

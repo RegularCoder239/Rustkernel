@@ -14,7 +14,6 @@ use crate::std::{
 	hltloop,
 	Box,
 	cli,
-	VecBase
 };
 use crate::hw::{
 	cpu
@@ -221,9 +220,9 @@ impl Process {
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);
 		self.page_table.load();
-		unsafe {
-			crate::mm::set_current_page_table(&mut self.page_table);
-		}
+
+		crate::mm::set_current_page_table(&mut self.page_table);
+
 		cpu::lapic::LAPIC::end_of_interrupt();
 		self.task_state.load()
 	}
@@ -249,11 +248,11 @@ impl Process {
 }
 
 pub fn init_yield_timer() {
-//	cpu::connect_signal(cpu::TIMER, r#yield);
+	cpu::connect_signal(cpu::TIMER, r#yield);
 }
 
 pub fn r#yield() {
-	if let Some(mut lock) = PROCESSES.try_lock() {
+	if let Some(lock) = PROCESSES.try_lock() {
 		cli();
 		let process_idx = lock.into_iter().position(|process| process.state == ProcessState::IDLE && process.task_state != *STATE_PER_CPU.deref_mut());
 		unsafe {

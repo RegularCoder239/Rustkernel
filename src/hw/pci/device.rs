@@ -1,5 +1,4 @@
 use crate::std::Box;
-use core::fmt;
 use super::{
 	Header,
 	Bridge,

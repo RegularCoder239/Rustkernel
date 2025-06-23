@@ -1,6 +1,4 @@
 use crate::mm::{
-	current_page_table,
-	per_core_setup,
 	Mapped
 };
 use crate::kernel::scheduler::{

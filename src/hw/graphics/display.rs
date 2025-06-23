@@ -1,8 +1,8 @@
-use crate::uefi_result;
-use crate::std::LazyMutex;
-
-use crate::boot::FrameBuffer;
-use crate::mm::Mapped;
+use crate::{
+	uefi_result,
+	std::LazyMutex,
+	mm::Mapped
+};
 
 static FRAMEBUFFER_POINTER: LazyMutex<Option<*mut u32>> = LazyMutex::new(
 	|| {

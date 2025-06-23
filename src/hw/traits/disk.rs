@@ -16,22 +16,23 @@ pub trait Disk {
 
 pub static DISKS: Mutex<Vec<Box<dyn Disk>>> = Mutex::new(Vec::new());
 
-pub fn add_disk(mut disk: Box<dyn Disk>) {
+pub fn add_disk(disk: Box<dyn Disk>) {
 	DISKS.lock().push_back(disk)
 }
 
 pub fn read_lba(disk_idx: usize, lba: usize) -> Sector {
 	let mut lock = DISKS.lock();
-	let mut deref = lock.deref_mut();
-	let mut disk = deref[disk_idx].deref_mut();
-	disk.read_lba(lba)
+	lock
+		.deref_mut()
+		[disk_idx].deref_mut()
+		.read_lba(lba)
 }
 
 pub fn setup_disks() -> ! {
 	log::info!("Setting up disks.");
 	{
 		let mut lock = DISKS.lock();
-		for mut disk in lock.deref_mut() {
+		for disk in lock.deref_mut() {
 			disk.reset();
 		}
 	}

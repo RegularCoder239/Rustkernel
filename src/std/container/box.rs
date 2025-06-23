@@ -9,8 +9,6 @@ use core::{
 	ptr::Unique,
 	ptr,
 
-	pin::PinCoerceUnsized,
-
 	mem
 };
 use crate::{
@@ -24,11 +22,7 @@ use crate::std::{
 	RAMAllocator,
 	alloc::VirtualMapper
 };
-use super::BoxInner;
 
-//#[lang = "owned_box"]
-#[fundamental]
-#[rustc_insignificant_dtor]
 pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 	Unique<T>,
 	PhantomData<A>,
@@ -38,8 +32,6 @@ pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 impl<T, A: Allocator> Box<T, A> {
 	#[inline(always)]
 	#[must_use]
-	#[cfg(not(no_global_oom_handling))]
-	#[rustc_diagnostic_item = "box_new"]
 	#[cfg_attr(miri, track_caller)]
 	pub fn new(content: T) -> Self {
 		let mut r#box = Self::new_sized(mem::size_of::<T>());
@@ -87,9 +79,7 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	}
 	pub fn from_raw_address_sized(addr: u64, size: usize) -> Box<T, A> {
 		Self::from_raw_virt_address_sized(
-			unsafe {
-				A::VirtualMapper::map::<u8>(stack_vec!{ addr }, size).unwrap() as u64
-			},
+			A::VirtualMapper::map::<u8>(stack_vec!{ addr }, size).unwrap() as u64,
 			size
 		)
 	}
@@ -150,5 +140,4 @@ impl<T: Default, A: Allocator> Default for Box<T, A> {
 	}
 }
 
-unsafe impl<T: ?Sized, A: Allocator> PinCoerceUnsized for Box<T, A> {}
 impl<T: ?Sized + Unsize<U>, U: ?Sized, A: Allocator> CoerceUnsized<Box<U, A>> for Box<T, A> {}

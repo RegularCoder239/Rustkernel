@@ -1,8 +1,6 @@
 use crate::mm::{
 	buddy,
-
-	Mapped,
-	Address
+	Mapped
 };
 use core::ops::{
 	Deref,
@@ -65,7 +63,7 @@ impl VirtualMapper for KernelGlobalMapper {
 	fn map<T: ?Sized>(addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
 		addr.mapped_global::<T>(amount)
 	}
-	unsafe fn unmap(addr: u64, amount: usize) {
+	unsafe fn unmap(_: u64, _: usize) {
 		log::info!("Unmapped");
 	//	addr.unmap(amount)
 	}
@@ -76,21 +74,20 @@ impl Allocator for RAMAllocator {
 	type PhysicalAllocator = PhysicalRAMAllocator;
 
 	fn allocate<T: ?Sized>(amount: usize) -> Option<*mut T> where Self: Sized {
-		unsafe {
-			KernelGlobalMapper::map(
-				PhysicalRAMAllocator::allocate_phys(amount)?,
-				amount
-			)
-		}
+		KernelGlobalMapper::map(
+			PhysicalRAMAllocator::allocate_phys(amount)?,
+			amount
+		)
 	}
 
-	unsafe fn free(ptr: *const u8, amount: usize) where Self: Sized {
-		let ptr_u64 = ptr as u64;
-		unsafe {
-			// TODO: Broken free implementation fix
-			/*hysicalRAMAllocator::free_phys(ptr_u64.physical_address(), amount);
+	unsafe fn free(_: *const u8, _: usize) where Self: Sized {
+		// TODO: Broken free implementation
+		//let ptr_u64 = ptr as u64;
+
+
+		/*hysicalRAMAllocator::free_phys(ptr_u64.physical_address(), amount);
 			KernelGlobalMapper::unmap(ptr_u64, amount);
-		*/}
+		*/
 	}
 }
 
@@ -98,9 +95,7 @@ impl<T, A: Allocator> Allocation<T, A> {
 	pub fn new(amount: usize) -> Option<Allocation<T, A>> {
 		Some(
 			Allocation {
-				content: unsafe {
-					A::allocate::<T>(amount * core::mem::size_of::<T>())?
-				},
+				content: A::allocate::<T>(amount * core::mem::size_of::<T>())?,
 				size: amount,
 				phantom: PhantomData
 			}

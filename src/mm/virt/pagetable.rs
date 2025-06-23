@@ -194,12 +194,14 @@ impl PageTable {
 		PageTable::flush();
 		Ok(virt_addr)
 	}
-	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> Result<(), PagingError> {
+	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> bool {
 		for (offset, page_size) in virt_addr_iterator(amount) {
-			self.unmap_page(virt_addr + offset, page_size);
+			if !self.unmap_page(virt_addr + offset, page_size) {
+				return false;
+			}
 		}
 		PageTable::flush();
-		Ok(())
+		true
 	}
 	pub unsafe fn mapped_temporary(&mut self, phys_addr: u64, size: usize) -> u64 {
 		if size != 0x1000 {

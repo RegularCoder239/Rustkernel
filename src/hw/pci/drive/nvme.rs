@@ -66,11 +66,7 @@ pub type NVMEHeader = Box<NVMEHeaderStruct>;
 
 impl DeviceTrait for NVMEHeader {
 	fn specific_scan(&self) {
-		add_disk(
-			unsafe {
-				NVMEDrive::from_raw_address(self.physical_address())
-			}
-		)
+		add_disk(NVMEDrive::from_raw_address(self.physical_address()))
 	}
 }
 
@@ -89,12 +85,12 @@ impl NVMEDrive {
 	}
 
 	fn doorbell(&mut self, id: usize) {
-		unsafe {
-			self.doorbells[id * 2 * (4 << self.cap_stride) / 4] = self.queues[id].submission_doorbell_idx as u32;
-		}
+		self.doorbells[id * 2 * (4 << self.cap_stride) / 4] = self.queues[id].submission_doorbell_idx as u32;
 		let idx = self.queues[id].completion_doorbell_idx;
 		let completion = &mut self.queues[id].completion_content[idx];
-		while (completion.status == 0) {}
+
+		while completion.status == 0 {}
+
 		self.queues[id].completion_doorbell_idx += 1;
 		self.doorbells[id * 2 * (4 << self.cap_stride) / 4 + 1] = self.queues[id].completion_doorbell_idx as u32;
 	}
@@ -160,7 +156,6 @@ impl Queue {
 	}
 
 	fn send(&mut self, entry: SubmissionEntry) {
-		let c = entry.command;
 		self.submission_content[self.submission_doorbell_idx] = entry;
 		self.submission_doorbell_idx += 1;
 	}

@@ -1,5 +1,4 @@
 use crate::std::{
-	Allocation,
 	Box
 };
 use super::FSError;
