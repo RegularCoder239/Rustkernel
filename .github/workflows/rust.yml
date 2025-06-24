@@ -12,12 +12,12 @@ env:
 jobs:
   build:
 
-    runs-on: arch-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
     - name: Install Dependencies
-      run: pacman -S mingw-w64-binutils
+      run: binutils-mingw-w64-x86-64
     - name: Build
       run: sh build.sh
     - name: Run tests
