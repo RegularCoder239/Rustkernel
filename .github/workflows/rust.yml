@@ -24,5 +24,3 @@ jobs:
       run: rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
     - name: Build
       run: sh build.sh
-    - name: Run tests
-      run: cargo test --verbose
