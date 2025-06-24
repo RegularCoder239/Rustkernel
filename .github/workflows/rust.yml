@@ -12,11 +12,13 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: arch-latest
 
     steps:
     - uses: actions/checkout@v4
+    - name Install Dependencies
+      run: pacman -S mingw-w64-binutils
     - name: Build
-      run: cargo build --verbose --target x86_64-unknown-uefi
+      run: sh build.sh
     - name: Run tests
       run: cargo test --verbose
