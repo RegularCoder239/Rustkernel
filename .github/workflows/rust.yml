@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/cache-apt-pkgs-action@latest
+    - uses: awalsh128/cache-apt-pkgs-action@latest
       with:
         packages: binutils-mingw-w64-x86-64
         version: 1.0 
