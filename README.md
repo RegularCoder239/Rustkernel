@@ -11,3 +11,8 @@ Please use a VM for testing.
 * UEFI-Display
 * NVME (limited)
 * RTL8139 (only sending packages)
+## Building
+Run build.sh
+## Running
+Run run.sh for an emulated VM
+Run production.sh for the virtalized VM
