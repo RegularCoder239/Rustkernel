@@ -51,7 +51,6 @@ impl<T: Copy + Default, const SIZE: usize> StackVec<T, SIZE> {
 impl<T, const SIZE: usize> StackVec<T, SIZE> {
 	pub fn push_back(&mut self, content: T) {
 		assert!(self.length < SIZE, "Capacity limit reached on StackVec.");
-		log::info!("Memsize {:x}", mem::size_of::<T>());
 		self.array[self.length] = content;
 		self.length += 1;
 	}

@@ -33,8 +33,7 @@ pub fn setup() {
 }
 
 pub fn awake_non_boot_cpus() {
-		log::info!("12");
+	log::info!("Booting non-boot CPUS.");
 	smp::load_smp_code();
 	LAPIC::init_non_boot_cpus(0x8000);
-	log::info!("Setting up CPU.");
 }

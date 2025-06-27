@@ -1,4 +1,7 @@
-pub type Mac = [u8; 6];
+use core::fmt;
+
+#[derive(Clone, Copy)]
+pub struct Mac([u8; 6]);
 
 #[repr(C, packed)]
 pub struct Frame {
@@ -10,8 +13,8 @@ pub struct Frame {
 
 impl Frame {
 	pub const EMPTY: Frame = Frame {
-		destination_mac: [0; 6],
-		source_mac: [0xde, 0xad, 0xbe, 0xef, 0x4d, 0xad],
+		destination_mac: Mac([0x0; 6]),
+		source_mac: Mac([0x0; 6]),
 		r#type: 0x8,
 	};
 
@@ -21,5 +24,23 @@ impl Frame {
 			source_mac: src,
 			..Self::EMPTY
 		}
+	}
+}
+
+impl From<[u8; 6]> for Mac {
+	fn from(mac: [u8; 6]) -> Self {
+		Mac(mac)
+	}
+}
+
+impl fmt::Display for Mac {
+	fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+		write!(fmt, "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
+			   self.0[0],
+			   self.0[1],
+			   self.0[2],
+			   self.0[3],
+			   self.0[4],
+			   self.0[5])
 	}
 }

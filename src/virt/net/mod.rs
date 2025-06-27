@@ -3,7 +3,8 @@ mod package;
 mod layer4;
 
 pub use frame::{
-	Frame
+	Frame,
+	Mac
 };
 pub use package::{
 	IPHeader,

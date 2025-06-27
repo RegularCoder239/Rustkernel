@@ -14,10 +14,11 @@ use core::{
 	ops::DerefMut
 };
 use rtl8139::RTL8139;
+use crate::virt::net::Mac;
 
 trait NetworkDeviceTrait {
 	fn setup(&mut self);
-	fn mac(&self) -> [u8; 6];
+	fn mac(&self) -> Mac;
 	fn send_package(&mut self, frame: *mut u8, len: usize);
 }
 
@@ -80,7 +81,7 @@ impl NetworkDevice {
 	pub fn setup(&mut self) {
 		self.device_mut().setup();
 	}
-	pub fn mac(&self) -> [u8; 6] {
+	pub fn mac(&self) -> Mac {
 		self.device().mac()
 	}
 }

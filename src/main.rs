@@ -73,14 +73,6 @@ fn boot_core_setup() -> ! {
 	log::info!("Boot process successfully started.");
 	std::cli();
 	kernel::boot_core_setup();
-
-	let fstest = virt::fs::TestFS {};
-	log::info!("{}",
-			   virt::fs::readresult_to_str(fstest.read(FilePath::new_unix("/helloworld"), 0, usize::MAX)).ok().unwrap()
-
-	);
-
-	log::info!("Booting non-boot CPUS.");
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
 

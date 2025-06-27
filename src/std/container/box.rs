@@ -110,7 +110,6 @@ impl<T: Copy, A: Allocator> Box<[T], A> {
 	}
 	pub fn as_slice(&mut self) -> &mut [T] {
 		unsafe {
-			log::info!("{:x} {:x}", self.0.as_ptr() as *mut T as u64, self.alloc_len() / mem::size_of::<T>());
 			core::slice::from_raw_parts_mut(
 				self.0.as_ptr() as *mut T,
 				self.alloc_len() / mem::size_of::<T>()

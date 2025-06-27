@@ -37,8 +37,6 @@ pub fn scan() -> ! {
 		}
 	}
 
-	log::info!("Mac address: {:x?}", ethernet::DEVICES.lock()[0].mac());
-
 	INITALIZED.unlock();
 	std::exit();
 }

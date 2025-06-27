@@ -2,10 +2,11 @@ use super::{
 	NetworkDeviceTrait
 };
 use crate::mm::Address;
+use crate::virt::net::Mac;
 
 #[repr(C, packed)]
 pub struct RTL8139Registers {
-	mac: [u8; 6],
+	mac: Mac,
 	unused: u16,
 	mar: u64,
 	tx_status: [u32; 4],
@@ -26,8 +27,8 @@ pub struct RTL8139(RTL8139Registers);
 static RX_BUFFER: [u8; 0x2000] = [0; 0x2000];
 
 impl NetworkDeviceTrait for RTL8139 {
-	fn mac(&self) -> [u8; 6] {
-		self.0.mac
+	fn mac(&self) -> Mac {
+		self.0.mac.clone()
 	}
 	fn setup(&mut self) {
 		self.0.enable = 0xff;
