@@ -1,6 +1,7 @@
 use crate::mm::{
 	buddy,
-	Mapped
+	Mapped,
+	Address
 };
 use core::ops::{
 	Deref,
@@ -42,19 +43,13 @@ pub struct BasicAllocator<V: VirtualMapper, P: PhysicalAllocator> {
 
 pub type RAMAllocator = BasicAllocator<KernelGlobalMapper, PhysicalRAMAllocator>;
 
-pub struct Allocation<T, A: Allocator = RAMAllocator> {
-	content: *mut T,
-	size: usize,
-	phantom: PhantomData<A>
-}
-
 impl PhysicalAllocator for PhysicalRAMAllocator {
 	const DEFAULT: Self = Self {};
 	fn allocate_phys(amount: usize) -> Option<StackVec<u64, 0x200>> {
 		buddy::allocate(amount)
 	}
-	unsafe fn free_phys(_: u64, _: usize) {
-		log::warn!("Free implementation missing.");
+	unsafe fn free_phys(addr: u64, amount: usize) {
+		buddy::free(addr, amount);
 	}
 }
 
@@ -86,74 +81,9 @@ impl Allocator for RAMAllocator {
 		)
 	}
 
-	unsafe fn free(_: *const u8, _: usize) where Self: Sized {
-		// TODO: Broken free implementation
-		//let ptr_u64 = ptr as u64;
-
-
-		/*hysicalRAMAllocator::free_phys(ptr_u64.physical_address(), amount);
-			KernelGlobalMapper::unmap(ptr_u64, amount);
-		*/
-	}
-}
-
-impl<T, A: Allocator> Allocation<T, A> {
-	pub fn new(amount: usize) -> Option<Allocation<T, A>> {
-		Some(
-			Allocation {
-				content: A::allocate::<T>(amount * core::mem::size_of::<T>())?,
-				size: amount,
-				phantom: PhantomData
-			}
-		)
-	}
-
-	pub fn as_ptr(&self) -> *mut T {
-		self.content
-	}
-	pub fn as_mut(&self) -> &mut T {
-		unsafe {
-			self.content.as_mut().unwrap()
-		}
-	}
-	pub fn as_ref(&self) -> &T {
-		self.as_mut()
-	}
-}
-
-impl<T, A: Allocator> Deref for Allocation<T, A> {
-	type Target = T;
-
-	fn deref(&self) -> &T {
-		unsafe {
-			&*self.as_ptr()
-		}
-	}
-}
-
-impl<T, A: Allocator> DerefMut for Allocation<T, A> {
-	fn deref_mut(&mut self) -> &mut T {
-		unsafe {
-			&mut *self.as_ptr()
-		}
-	}
-}
-
-impl<T, A: Allocator> Clone for Allocation<T, A> {
-	fn clone(&self) -> Self {
-		Allocation {
-			content: self.content,
-			size: self.size,
-			phantom: PhantomData
-		}
-	}
-}
-
-impl<T, A: Allocator> Drop for Allocation<T, A> {
-	fn drop(&mut self) {
-		unsafe {
-			A::free(self.content as *const T as *const u8, self.size)
-		}
+	unsafe fn free(ptr: *const u8, size: usize) where Self: Sized {
+		PhysicalRAMAllocator::free_phys(ptr.physical_address(), size);
+		KernelGlobalMapper::unmap(ptr.addr() as u64, size);
 	}
 }
 

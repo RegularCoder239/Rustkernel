@@ -12,7 +12,8 @@ use crate::std::{
 	RAMAllocator,
 	hltloop,
 	Box,
-	cli
+	cli,
+	sti
 };
 use crate::hw::{
 	cpu
@@ -264,6 +265,7 @@ pub fn r#yield() {
 			PROCESSES.get_static().index_mut(unwarped_process_idx).switch();
 		}
 	} else {
+		sti();
 		hltloop();
 	}
 }

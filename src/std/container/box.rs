@@ -7,7 +7,7 @@ use core::{
 	ops::CoerceUnsized,
 	ops::Index,
 
-	ptr::Unique,
+	ptr::NonNull,
 	ptr,
 
 	mem
@@ -25,7 +25,7 @@ use crate::std::{
 };
 
 pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
-	Unique<T>,
+	NonNull<T>,
 	PhantomData<A>,
 	usize
 );
@@ -33,10 +33,14 @@ pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 impl<T, A: Allocator> Box<T, A> {
 	#[inline(always)]
 	#[must_use]
-	#[cfg_attr(miri, track_caller)]
 	pub fn new(content: T) -> Self {
+
 		let mut r#box = Self::new_sized(mem::size_of::<T>());
-		r#box.set(content);
+		log::info!("{}", 12);
+		unsafe {
+			*r#box = content;
+		}
+		log::info!("{}", 12);
 		r#box
 	}
 	pub fn new_uninit() -> Self {
@@ -45,17 +49,12 @@ impl<T, A: Allocator> Box<T, A> {
 	pub fn from_raw_address(addr: u64) -> Box<T, A> {
 		Self::from_raw_address_sized(addr, mem::size_of::<T>())
 	}
-	pub fn set(&mut self, content: T) {
-		unsafe {
-			*(self.0.as_mut()) = content;
-		}
-	}
 }
 
 impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn new_sized(size: usize) -> Box<T, A> {
 		Box(
-			Unique::new(
+			NonNull::new(
 				allocate!(ptr_with_alloc, A, T, size).unwrap()
 			).unwrap(),
 			PhantomData,
@@ -70,7 +69,7 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	}
 	pub fn from_raw_virt_address_sized(addr: u64, size: usize) -> Box<T, A> {
 		Box(
-			Unique::new(
+			NonNull::new(
 				ptr::from_raw_parts_mut::<T>(
 					addr as *mut (),
 					ptr::metadata(
@@ -104,6 +103,9 @@ impl<T: Copy, A: Allocator> Box<[T], A> {
 		}
 		r#box
 	}
+}
+
+impl<T, A: Allocator> Box<[T], A> {
 	pub fn as_slice(&self) -> &[T] {
 		unsafe {
 			core::slice::from_raw_parts(
@@ -149,7 +151,17 @@ impl<T: ?Sized, A: Allocator> DerefMut for Box<T, A> {
 	}
 }
 
-//impl<T: ?Sized, A: Allocator> Unpin for Box<T, A> {}
+impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
+	fn drop(&mut self) {
+		unsafe {
+			let ptr = self.0.as_ptr() as *const u8;
+			if ptr as u64 == 0 {
+				return;
+			}
+			A::free(ptr, self.alloc_len())
+		}
+	}
+}
 
 impl<T: Default, A: Allocator> Default for Box<T, A> {
 	fn default() -> Self {

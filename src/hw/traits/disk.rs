@@ -43,9 +43,7 @@ pub fn setup_disks() -> ! {
 		}
 	}
 
-	if let Ok(fs) = FAT32::mount(MountPoint::from_disk(0)) {
-		log::info!("{}", readresult_to_str(fs.read(FilePath::DOS("FILE1      "), 0, usize::MAX)).ok().unwrap());
-	}
+	log::info!("{}", *crate::mm::buddy::TOTAL_ALLOCATED.lock());
 
 	crate::std::exit()
 }

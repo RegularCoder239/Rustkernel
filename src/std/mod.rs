@@ -30,10 +30,6 @@ pub use thread::{
 };
 pub use alloc::{
 	Allocator,
-/*	VirtualMapper,
-	PhysicalAllocator,
-	PhysicalRAMAllocator,
-*/	Allocation,
 	RAMAllocator
 };
 pub use utils::{

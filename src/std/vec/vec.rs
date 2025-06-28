@@ -47,9 +47,11 @@ impl<T, A: Allocator> Vec<T, A> {
 	}
 
 	pub fn push_back(&mut self, what: T) {
+
 		let idx = self.length;
 		self.length += 1;
 		self.grow();
+
 		*self.index_mut(idx) = what;
 	}
 
@@ -94,10 +96,9 @@ impl<T, A: Allocator> Vec<T, A> {
 		if self.capacity == 0 {
 			self.capacity = 1;
 		}
-		let mut new_chunk = SharedRef::new(
+		let mut new_chunk = SharedRef::<VecChunk<T, A>>::new(
 			VecChunk::<T, A>::new(self.capacity.next_power_of_two() * 2)
 		);
-
 		if self.last.is_none() {
 			self.last = new_chunk.split();
 			self.begin = new_chunk;
@@ -178,6 +179,7 @@ impl<T, A: Allocator> IndexMut<usize> for Vec<T, A> {
 }
 impl<T, A: Allocator> IndexMut<usize> for &mut Vec<T, A> {
 	fn index_mut<'vec>(&'vec mut self, index: usize) -> &'vec mut T {
+		log::info!("{}", index);
 		let (chunk, remainder) = self.index_chunk_mut(index);
 		chunk.index_mut(remainder)
 	}

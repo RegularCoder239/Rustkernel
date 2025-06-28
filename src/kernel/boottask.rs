@@ -22,8 +22,7 @@ impl BootTask {
 		Process::spawn_with_stack(
 			ProcessPrivilage::KERNEL,
 			meth
-		)
-			.expect("Failed to create critical boot task.");
+		).expect("Failed to create critical boot task.");
 	}
 
 	pub fn add_boot_tasks() {

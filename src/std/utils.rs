@@ -2,7 +2,6 @@ use core::{
 	arch::asm
 };
 use super::{
-	Allocation,
 	Allocator
 };
 
@@ -16,18 +15,12 @@ impl<T> With<T> for *mut T {
 		self
 	}
 }
-impl<T, A: Allocator> With<T> for Allocation<T, A> {
-	fn with(self, content: T) -> Self {
-		*self.as_mut() = content;
-		self
-	}
-}
 
 #[inline]
 pub fn hltloop() -> ! {
 	loop {
 		unsafe {
-			asm!("sti; hlt");
+			asm!("hlt");
 		}
 	}
 }

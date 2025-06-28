@@ -72,7 +72,9 @@ fn main() -> Status {
 fn boot_core_setup() -> ! {
 	log::info!("Boot process successfully started.");
 	std::cli();
+
 	kernel::boot_core_setup();
+
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
 

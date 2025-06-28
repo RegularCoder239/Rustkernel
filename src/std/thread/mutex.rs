@@ -102,8 +102,6 @@ impl<T> Drop for MutexGuard<'_, T> {
 	}
 }
 
-
-
 impl<'mutex, T> OptMutexGuard<'mutex, T> {
 	pub fn new(mutex: &'mutex Mutex<Option<T>>) -> OptMutexGuard<'mutex, T> {
 		OptMutexGuard {

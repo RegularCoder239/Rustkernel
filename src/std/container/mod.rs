@@ -2,17 +2,20 @@ pub mod r#box;
 pub mod unsaferef;
 pub mod string;
 
-use core::mem;
+use core::mem::{
+	self,
+	ManuallyDrop
+};
 use crate::std::{
 	Allocator,
 	With,
-	RAMAllocator,
-	Allocation
+	RAMAllocator
 };
 use core::ops::{
 	Deref,
 	DerefMut
 };
+use r#box::Box;
 
 #[derive(Copy, Clone)]
 pub struct LazyBox<T> {
@@ -20,12 +23,10 @@ pub struct LazyBox<T> {
 	content: Option<T>
 }
 
-pub struct SharedRefBase<T, A: Allocator> {
-	content: Option<Allocation<T, A>>,
+pub struct SharedRef<T, A: Allocator = RAMAllocator> {
+	content: Option<ManuallyDrop<Box<T, A>>>,
 	ref_counter: usize
 }
-
-pub type SharedRef<T> = SharedRefBase<T, RAMAllocator>;
 
 impl<T> LazyBox<T> {
 	pub const fn new(meth: fn() -> T) -> LazyBox<T> {
@@ -59,57 +60,75 @@ impl<T> LazyBox<T> {
 	}
 }
 
-impl<T, A: Allocator> SharedRefBase<T, A> {
-	pub const EMPTY: SharedRefBase<T, A> = SharedRefBase::<T, A> {
+impl<T, A: Allocator> SharedRef<T, A> {
+	pub const EMPTY: SharedRef<T, A> = SharedRef::<T, A> {
 		content: Option::None,
 		ref_counter: 0
 	};
 
-	pub fn new(content: T) -> SharedRefBase<T, A> {
-		SharedRefBase::<T, A> {
+	pub fn new(content: T) -> SharedRef<T, A> {
+		let mut r#ref = SharedRef::<T, A> {
 			content: Some(
-				Allocation::<T, A>::new(mem::size_of::<T>())
-					.expect("Failed to allocate SharedRef")
-					.with(content)
+				ManuallyDrop::new(
+					Box::<T, A>::new_sized(mem::size_of::<T>())
+				)
 			),
-			ref_counter: 0
-		}
-	}
-	pub fn as_ref(&self) -> &T {
-		self.content.as_ref().unwrap().as_ref()
-	}
-	pub fn as_mut(&mut self) -> &mut T {
-		self.content.as_mut().unwrap().as_mut()
+			ref_counter: 1
+		};
+		*r#ref = content;
+		r#ref
 	}
 	pub fn is_none(&self) -> bool {
 		self.content.is_none()
 	}
+	fn split_content(&self) -> Option<ManuallyDrop<Box<T, A>>> {
+		let addr = self.content.as_ref()?.physical_address();
+		Some(
+			ManuallyDrop::new(
+				Box::<T, A>::from_raw_address(addr)
+			)
+		)
+	}
 	pub fn split(&mut self) -> Self {
 		self.ref_counter += 1;
 
-		SharedRefBase {
-			content: self.content.clone(),
+		SharedRef {
+			content: self.split_content(),
 			ref_counter: self.ref_counter
 		}
 	}
 	pub fn unwrap(&self) -> Option<&T> {
-		Some(self.content.as_ref()?.as_ref())
+		Some(
+			unsafe {
+				&*(self.content.as_ref()?.as_ptr())
+			}
+		)
 	}
 	pub fn unwrap_mut(&mut self) -> Option<&mut T> {
-		Some(self.content.as_mut()?.as_mut())
+		Some(
+			unsafe {
+				&mut *(self.content.as_mut()?.as_ptr())
+			}
+		)
 	}
 }
 
-impl<T, A: Allocator> Deref for SharedRefBase<T, A> {
+impl<T, A: Allocator> Deref for SharedRef<T, A> {
 	type Target = T;
 
 	fn deref(&self) -> &T {
-		self.as_ref()
+		self.unwrap().expect("Attempt to deref an nonreferenced SharedRef.")
 	}
 }
 
-impl<T, A: Allocator> DerefMut for SharedRefBase<T, A> {
+impl<T, A: Allocator> DerefMut for SharedRef<T, A> {
 	fn deref_mut(&mut self) -> &mut T {
-		self.as_mut()
+		self.unwrap_mut().expect("Attempt to deref an nonreferenced SharedRef.")
+	}
+}
+
+impl<T, A: Allocator> Drop for SharedRef<T, A> {
+	fn drop(&mut self) {
+
 	}
 }

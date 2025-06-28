@@ -1,7 +1,7 @@
 use super::super::{
-	Allocation,
 	Allocator,
-	SharedRef
+	SharedRef,
+	Box
 };
 use core::ops::{
 	Index,
@@ -9,7 +9,7 @@ use core::ops::{
 };
 
 pub struct VecChunk<T, A: Allocator> {
-	memory: Allocation<T, A>,
+	memory: Box<[T], A>,
 	capacity: usize,
 	next: SharedRef<VecChunk<T, A>>
 }
@@ -17,8 +17,7 @@ pub struct VecChunk<T, A: Allocator> {
 impl<T, A: Allocator> VecChunk<T, A> {
 	pub fn new(capacity: usize) -> VecChunk<T, A> {
 		VecChunk {
-			memory: Allocation::<T, A>::new(capacity)
-				.expect("Failed to allocate memory for VecChunk."),
+			memory: Box::new_sized(capacity * core::mem::size_of::<T>()),
 			capacity: capacity,
 			next: SharedRef::EMPTY
 		}
@@ -36,9 +35,7 @@ impl<T, A: Allocator> VecChunk<T, A> {
 	}
 
 	pub fn push(&mut self, what: T, pos: usize) {
-		unsafe {
-			*self.memory.as_ptr().add(pos) = what;
-		}
+		self.memory.as_slice_mut()[pos] = what;
 	}
 }
 
@@ -48,9 +45,8 @@ impl<T, A: Allocator> Index<usize> for VecChunk<T, A> {
 		if self.capacity <= index {
 			panic!("Attempt to index {} in a vecchunk with length {}.", index, self.capacity);
 		}
-		unsafe {
-			&mut *self.memory.as_ptr().add(index)
-		}
+
+		self.memory.as_slice().index(index)
 	}
 }
 
@@ -59,18 +55,7 @@ impl<T, A: Allocator> IndexMut<usize> for VecChunk<T, A> {
 		if self.capacity <= index {
 			panic!("Attempt to index {} in a vecchunk with length {}.", index, self.capacity);
 		}
-		unsafe {
-			&mut *self.memory.as_ptr().add(index)
-		}
-	}
-}
-/*
-impl<T: Clone, A: Allocator> IntoIterator for Vec<T, A> {
-	type Item = T;
-	type IntoIter = VecIterNonRef<T, Vec<T, A>>;
 
-	fn into_iter(self) -> Self::IntoIter {
-		Self::IntoIter::new(self)
+		self.memory.as_slice_mut().index_mut(index)
 	}
 }
-*/
