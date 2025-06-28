@@ -5,7 +5,6 @@ use crate::std::{
 };
 use core::ops::DerefMut;
 
-
 pub const SECTOR_SIZE: usize = 512;
 pub type Sector = Box<[u8; SECTOR_SIZE]>;
 
@@ -23,10 +22,17 @@ pub fn add_disk(disk: Box<dyn Disk>) {
 pub fn read_lba(disk_idx: usize, lba: usize) -> Sector {
 	let mut lock = DISKS.lock();
 	lock
-		.deref_mut()
-		[disk_idx].deref_mut()
-		.read_lba(lba)
+		.deref_mut()[disk_idx]
+		.deref_mut().read_lba(lba)
 }
+
+use crate::virt::fs::{
+	FAT32,
+	MountPoint,
+	FileStructure,
+	FilePath,
+	readresult_to_str
+};
 
 pub fn setup_disks() -> ! {
 	log::info!("Setting up disks.");
@@ -37,5 +43,9 @@ pub fn setup_disks() -> ! {
 		}
 	}
 
-	crate::std::exit();
+	if let Ok(fs) = FAT32::mount(MountPoint::from_disk(0)) {
+		log::info!("{}", readresult_to_str(fs.read(FilePath::DOS("FILE1      "), 0, usize::MAX)).ok().unwrap());
+	}
+
+	crate::std::exit()
 }

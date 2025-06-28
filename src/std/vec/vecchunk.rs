@@ -37,7 +37,7 @@ impl<T, A: Allocator> VecChunk<T, A> {
 
 	pub fn push(&mut self, what: T, pos: usize) {
 		unsafe {
-			*self.memory.as_ptr().wrapping_add(pos) = what;
+			*self.memory.as_ptr().add(pos) = what;
 		}
 	}
 }
@@ -49,7 +49,7 @@ impl<T, A: Allocator> Index<usize> for VecChunk<T, A> {
 			panic!("Attempt to index {} in a vecchunk with length {}.", index, self.capacity);
 		}
 		unsafe {
-			&mut *self.memory.as_ptr().wrapping_add(index)
+			&mut *self.memory.as_ptr().add(index)
 		}
 	}
 }
@@ -60,7 +60,7 @@ impl<T, A: Allocator> IndexMut<usize> for VecChunk<T, A> {
 			panic!("Attempt to index {} in a vecchunk with length {}.", index, self.capacity);
 		}
 		unsafe {
-			&mut *self.memory.as_ptr().wrapping_add(index)
+			&mut *self.memory.as_ptr().add(index)
 		}
 	}
 }

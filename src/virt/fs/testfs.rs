@@ -1,7 +1,8 @@
 use super::{
 	FileStructure,
 	FilePath,
-	FSError
+	FSError,
+	MountPoint
 };
 use crate::std::{
 	Box
@@ -14,6 +15,11 @@ impl TestFS {
 }
 
 impl FileStructure for TestFS {
+	fn mount(_: MountPoint) -> Result<Self, FSError> {
+		Ok(
+			TestFS {}
+		)
+	}
 	fn read(&self, _: FilePath, offset: usize, len: usize) -> Result<Box<[u8]>, FSError> {
 		if offset >= Self::TESTFS_CONTENT.len() {
 			return Result::Err(FSError::OOBRead);

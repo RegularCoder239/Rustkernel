@@ -27,7 +27,7 @@ pub fn display_framebuffer() -> Option<&'static mut [u32]> {
 		None
 	} else {
 		Some(
-			pointer.as_mut().unwrap().as_slice()
+			pointer.as_mut().unwrap().as_slice_mut()
 		)
 	}
 }

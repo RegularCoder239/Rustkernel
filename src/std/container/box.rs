@@ -5,6 +5,7 @@ use core::{
 	ops::Deref,
 	ops::DerefMut,
 	ops::CoerceUnsized,
+	ops::Index,
 
 	ptr::Unique,
 	ptr,
@@ -96,24 +97,36 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 
 impl<T: Copy, A: Allocator> Box<[T], A> {
 	pub fn new_slice(data: &[T]) -> Box<[T], A> {
-		let r#box = Self::new_sized(data.len() * mem::size_of::<T>());
-		let unwrapped_content = unsafe {
-			core::slice::from_raw_parts_mut(
-				r#box.0.as_ptr() as *mut T,
-				data.len()
-			)
-		};
+		let mut r#box = Self::new_sized(data.len() * mem::size_of::<T>());
+		let unwrapped_content = r#box.as_slice_mut();
 		for idx in 0..data.len() {
 			unwrapped_content[idx] = data[idx];
 		}
 		r#box
 	}
-	pub fn as_slice(&mut self) -> &mut [T] {
+	pub fn as_slice(&self) -> &[T] {
+		unsafe {
+			core::slice::from_raw_parts(
+				self.0.as_ptr() as *const T,
+				self.alloc_len() / mem::size_of::<T>()
+			)
+		}
+	}
+	pub fn as_slice_mut(&self) -> &mut [T] {
 		unsafe {
 			core::slice::from_raw_parts_mut(
 				self.0.as_ptr() as *mut T,
 				self.alloc_len() / mem::size_of::<T>()
 			)
+		}
+	}
+}
+
+impl<T: Copy, A: Allocator> Index<usize> for Box<[T], A> {
+	type Output = T;
+	fn index(&self, idx: usize) -> &T {
+		unsafe {
+			&*(self.0.as_ptr().byte_add(idx * mem::size_of::<T>()) as *const T)
 		}
 	}
 }
@@ -136,7 +149,7 @@ impl<T: ?Sized, A: Allocator> DerefMut for Box<T, A> {
 	}
 }
 
-impl<T: ?Sized, A: Allocator> Unpin for Box<T, A> {}
+//impl<T: ?Sized, A: Allocator> Unpin for Box<T, A> {}
 
 impl<T: Default, A: Allocator> Default for Box<T, A> {
 	fn default() -> Self {

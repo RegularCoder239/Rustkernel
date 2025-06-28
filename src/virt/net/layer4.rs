@@ -33,7 +33,7 @@ impl UDPPackage {
 		boxed.header.calculate_checksum();
 		unsafe {
 			(&mut boxed.data as *mut u8).copy_from(data.as_ptr(), data.len());
-			(&mut boxed.data as *mut u8 as *mut u32).add(data.len()).write_unaligned(
+			(&mut boxed.data as *mut u8 as *mut u32).byte_add(data.len()).write_unaligned(
 				CRC_32_ETHERNET.checksum(
 					core::slice::from_raw_parts(
 						boxed.as_ptr::<u8>(),
