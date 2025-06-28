@@ -3,3 +3,5 @@ disk.img
 *.log
 *.lib
 *.img
+netdump.bat
+rustc-ice*
