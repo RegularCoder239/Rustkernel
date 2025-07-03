@@ -6,6 +6,7 @@ use core::{
 	ops::DerefMut,
 	ops::CoerceUnsized,
 	ops::Index,
+	ops::IndexMut,
 
 	ptr::NonNull,
 	ptr,
@@ -85,6 +86,9 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn physical_address(&self) -> u64 {
 		(self.0.as_ptr().addr() as u64).physical_address()
 	}
+	pub fn virtual_address(&self) -> u64 {
+		self.0.as_ptr().addr() as u64
+	}
 	pub fn as_ptr<T2>(&self) -> *mut T2 {
 		self.0.as_ptr() as *mut T2
 	}
@@ -125,6 +129,14 @@ impl<T: Copy, A: Allocator> Index<usize> for Box<[T], A> {
 	fn index(&self, idx: usize) -> &T {
 		unsafe {
 			&*(self.0.as_ptr().byte_add(idx * mem::size_of::<T>()) as *const T)
+		}
+	}
+}
+
+impl<T: Copy, A: Allocator> IndexMut<usize> for Box<[T], A> {
+	fn index_mut(&mut self, idx: usize) -> &mut T {
+		unsafe {
+			&mut *(self.0.as_ptr().byte_add(idx * mem::size_of::<T>()) as *mut T)
 		}
 	}
 }

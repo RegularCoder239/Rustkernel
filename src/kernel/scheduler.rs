@@ -173,7 +173,6 @@ impl Process {
 	}
 	pub fn new_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
 		let mut process = Process::new(privilage, entry_addr)?;
-
 		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x30000)? as u64 + 0x30000);
 		Some(process)
 	}
@@ -247,6 +246,10 @@ impl Process {
 	fn set_pid(&mut self, pid: u64) -> &mut Self {
 		self.pid = pid;
 		self
+	}
+
+	pub fn spawn(self) {
+		PROCESSES.lock().push_back(self);
 	}
 }
 

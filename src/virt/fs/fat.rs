@@ -1,6 +1,7 @@
 use crate::{
 	hw::Sector,
 	hw::read_lba,
+	hw::read_lbas,
 	std::Box
 };
 use core::{
@@ -24,8 +25,8 @@ pub struct FAT32 {
 	root_directory: Directory,
 
 	// Precalculated values
-	//fat_lba_begin: usize
-	data_lba: usize
+	data_lba: usize,
+	cluster_size: usize // In bytes
 }
 
 #[repr(C, packed)]
@@ -75,6 +76,13 @@ impl FAT32 {
 	fn read_cluster(&self, cluster: usize) -> Sector {
 		read_lba(self.disk_id, self.boot_sector_info.sectors_per_cluster as usize * (cluster - 2) + self.data_lba)
 	}
+	fn read_clusters(&self, cluster: usize, amount: usize) -> Box<[u8]> {
+		read_lbas(
+			self.disk_id,
+			self.boot_sector_info.sectors_per_cluster as usize * (cluster - 2) + self.data_lba,
+			self.boot_sector_info.sectors_per_cluster as usize * amount
+		)
+	}
 }
 
 impl FileStructure for FAT32 {
@@ -86,12 +94,14 @@ impl FileStructure for FAT32 {
 			let root_directory_sector = read_lba(disk_id, data_lba);
 			Ok(
 				FAT32 {
+					cluster_size: boot_sector_info.sectors_per_cluster as usize * 512,
 					disk_id,
 					data_lba,
 					root_directory: Box::from_raw_address_sized(root_directory_sector.physical_address(), 0x200),
 					root_directory_sector,
 					boot_sector,
-					boot_sector_info
+					boot_sector_info,
+
 				}
 			)
 		} else {
@@ -106,7 +116,7 @@ impl FileStructure for FAT32 {
 				}
 			).ok_or(FSError::FileNotFound)?;
 			Ok(
-				self.read_cluster(entry.first_data_cluster_low as usize | ((entry.first_data_cluster_high as usize) << 16))
+				self.read_clusters(entry.first_data_cluster_low as usize | ((entry.first_data_cluster_high as usize) << 16), entry.file_size as usize / self.cluster_size + 1)
 			)
 		} else {
 			Err(FSError::InvalidPath)

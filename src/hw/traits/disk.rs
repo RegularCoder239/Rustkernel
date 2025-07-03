@@ -2,7 +2,8 @@ use crate::std::{
 	Vec,
 	Box,
 	Mutex,
-	log
+	log,
+	self
 };
 use core::ops::DerefMut;
 
@@ -27,6 +28,19 @@ pub fn read_lba(disk_idx: usize, lba: usize) -> Sector {
 		.deref_mut().read_lba(lba)
 }
 
+pub fn read_lbas(disk_idx: usize, lba: usize, amount: usize) -> Box<[u8]> {
+	let mut r#box = Box::<[u8]>::new_sized(amount * SECTOR_SIZE);
+
+	for idx in 0..amount {
+		let sector = read_lba(disk_idx, lba + idx);
+		for idx2 in idx * SECTOR_SIZE..SECTOR_SIZE * (idx + 1) {
+			r#box[idx2] = sector[idx2 % SECTOR_SIZE];
+		}
+	}
+
+	r#box
+}
+
 use crate::virt::fs::{
 	FAT32,
 	MountPoint,
@@ -43,6 +57,11 @@ pub fn setup_disks() -> ! {
 			disk.reset();
 		}
 	}
+
+	let filecontent = FAT32::mount(MountPoint::Disk(0)).ok().unwrap().read(
+		FilePath::DOS("TEST    ELF"), 0, usize::MAX
+	).ok().unwrap();
+	std::elf::load_elf(filecontent.as_slice());
 
 	crate::std::exit()
 }

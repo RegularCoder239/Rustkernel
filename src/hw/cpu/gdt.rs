@@ -3,7 +3,10 @@ use crate::{
 	allocate
 };
 use crate::std::{
-	PerCpu
+	PerCpu,
+	Box,
+	RAMAllocator,
+	Allocator
 };
 
 #[derive(Clone, Copy)]
@@ -17,14 +20,15 @@ struct GlobalDescriptor {
 }
 
 #[derive(Clone, Copy)]
-#[repr(C, packed)]
+#[repr(C, packed(4))]
 pub struct TSS {
 	reserved_1: u32,
-	ring_rsps: [u64; 3],
+	pub ring_rsps: [u64; 3],
 	reserved_2: u64,
 	ist_rsps: [u64; 7],
 	reserved_3: u64,
-	iopb: u32
+	reserved_4: u16,
+	iopb: u16
 }
 
 #[derive(Copy, Clone)]
@@ -40,7 +44,7 @@ struct GDTR {
 	base: u64
 }
 
-static GDTS: PerCpu<GDT> = PerCpu::new(GDT::DEFAULT);
+static GDTS: PerCpu<GDT> = PerCpu::new(GDT::new());
 
 impl GlobalDescriptor {
 	const EMPTY: GlobalDescriptor = GlobalDescriptor {
@@ -72,7 +76,7 @@ impl GlobalDescriptor {
 		..Self::EMPTY
 	};
 
-	fn new_long_tss_low(tss: &TSS) -> (GlobalDescriptor, GlobalDescriptor) {
+	fn new_long_tss(tss: &TSS) -> (GlobalDescriptor, GlobalDescriptor) {
 		let raw_addr = tss as *const TSS as u64 + crate::mm::kernel_offset();
 		(
 			GlobalDescriptor {
@@ -99,31 +103,38 @@ impl GDT {
 	pub const EMPTY_SEG: u16 = 0x0;
 	pub const CODE_SEG: u16 = 0x8;
 	pub const DATA_SEG: u16 = 0x10;
-	pub const DEFAULT: GDT = GDT {
-		gdt: [
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::KERNEL_CODE_SEG,
-			GlobalDescriptor::KERNEL_DATA_SEG,
-			GlobalDescriptor::USER_CODE_SEG,
-			GlobalDescriptor::USER_DATA_SEG,
-			GlobalDescriptor::EMPTY, // TSS Low
-			GlobalDescriptor::EMPTY, // TSS High
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-			GlobalDescriptor::EMPTY,
-		],
-		exception_stack: core::ptr::null_mut(),
-		tss: TSS::EMPTY
-	};
+	pub const fn new() -> GDT {
+		GDT {
+			gdt: [
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::KERNEL_CODE_SEG,
+				GlobalDescriptor::KERNEL_DATA_SEG,
+				GlobalDescriptor::USER_CODE_SEG,
+				GlobalDescriptor::USER_DATA_SEG,
+				GlobalDescriptor::EMPTY, // TSS Low
+				GlobalDescriptor::EMPTY, // TSS High
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+				GlobalDescriptor::EMPTY,
+			],
+			exception_stack: core::ptr::null_mut(),
+			tss: TSS::EMPTY
+		}
+	}
 
 	fn setup_tss(&mut self) {
-		(self.gdt[5], self.gdt[6]) = GlobalDescriptor::new_long_tss_low(&self.tss);
+		(self.gdt[5], self.gdt[6]) = GlobalDescriptor::new_long_tss(&self.tss);
+		self.exception_stack = RAMAllocator::DEFAULT.allocate(0x5000).unwrap();
+		let value = self.exception_stack as u64 + 0x5000;
+		self.tss.ist_rsps[0] = value;
+		self.tss.ring_rsps[0] = value;
+		crate::std::log::info!("{:x}", value);
 		unsafe {
 			asm!("ltr ax", in("ax") 5 * 0x8);
 		}
@@ -153,8 +164,8 @@ impl GDT {
 		}
 	}
 
-	fn set_ist_stack(&mut self, idx: usize, ptr: *mut u8, stack_size: u64) {
-		self.tss.ist_rsps[idx] = ptr as u64 + stack_size;
+	fn set_stack(&mut self, ptr: *mut u8, stack_size: u64) {
+
 	}
 }
 
@@ -165,14 +176,13 @@ impl TSS {
 		reserved_2: 0x0,
 		ist_rsps: [0x0; 7],
 		reserved_3: 0x0,
-		iopb: 0x68000000
+		reserved_4: 0x0,
+		iopb: core::mem::size_of::<TSS>() as u16
 	};
 }
 
 pub fn per_core_setup() {
 	let gdt = GDTS.deref_mut();
-	gdt.exception_stack = allocate!(ptr, u8, 0x5000).expect("Failed to allocate exception stack.");
-	gdt.set_ist_stack(0x0, gdt.exception_stack, 0x5000);
 	gdt.load();
 	gdt.setup_tss();
 }

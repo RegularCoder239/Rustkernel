@@ -16,7 +16,7 @@ use core::ops::Deref;
 struct InterruptDescriptor {
 	offset1: u16,
 	segment_selector: u16,
-	ist: u8,
+	pub ist: u8,
 	flags: u8,
 	offset2: u16,
 	offset3: u32,
@@ -205,7 +205,9 @@ impl IDT {
 	}
 	fn setup_exception_handlers(&mut self) {
 		for idx in 0..31 {
-			self.descriptors[idx] = InterruptDescriptor::from_method(INTERRUPT_HANDLERS[idx]);
+			let mut desc = InterruptDescriptor::from_method(INTERRUPT_HANDLERS[idx]);
+			desc.ist = 0x0;
+			self.descriptors[idx] = desc;
 		}
 	}
 	fn connect_handler(&mut self, idx: usize, method: Handler) {

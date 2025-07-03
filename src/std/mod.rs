@@ -7,6 +7,7 @@ mod vec;
 mod reversebytes;
 mod log_intern;
 
+pub mod elf;
 pub mod log {
 	pub use crate::{
 		info,

@@ -20,7 +20,7 @@ impl PageDirectory {
 
 	pub fn new_fixed_offset(phys_addr: u64, size: u64) -> PageDirectory {
 		PageDirectory {
-			directory: core::array::from_fn(|idx| PageTableEntry::new_entry(phys_addr + size as u64 * idx as u64, 0x0))
+			directory: core::array::from_fn(|idx| PageTableEntry::new_entry(phys_addr + size as u64 * idx as u64, 0x4))
 		}
 	}
 	pub fn new_mapped((mut start, end): (u64, u64), size: u64) -> PageDirectory {
@@ -32,7 +32,7 @@ impl PageDirectory {
 			endidx /= size;
 		}
 		for idx in (start & (size*0x200-1))/size..endidx {
-			dir.directory[idx as usize] = PageTableEntry::new_entry(start, 0x0);
+			dir.directory[idx as usize] = PageTableEntry::new_entry(start, 0x4);
 			start += size;
 		}
 		dir

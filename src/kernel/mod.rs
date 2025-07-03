@@ -6,7 +6,9 @@ pub use scheduler::{
 	r#yield,
 	exit_current_process,
 	current_process,
-	current_task_state
+	current_task_state,
+	Process,
+	ProcessPrivilage
 };
 
 pub use exception::{

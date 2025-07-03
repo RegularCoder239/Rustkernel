@@ -8,5 +8,6 @@ pub use traits::{
 	disk::Disk,
 	disk::add_disk,
 	disk::Sector,
-	disk::read_lba
+	disk::read_lba,
+	disk::read_lbas
 };

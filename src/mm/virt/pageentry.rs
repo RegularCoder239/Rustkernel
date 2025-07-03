@@ -28,13 +28,13 @@ impl PageTableEntry {
 		self.content = 0x0;
 	}
 	pub fn set_addr(&mut self, addr: u64, size: usize) {
-		self.content = addr | 0x3;
+		self.content = addr | 0x7;
 		if size != 0x1000 {
 			self.content |= 0x80;
 		}
 	}
 	pub fn set_flags(&mut self, flags: u64) {
-		self.content ^= flags;
+		self.content |= flags;
 	}
 	pub fn addr(&self) -> u64 {
 		self.content & !0xfff
