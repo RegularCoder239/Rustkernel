@@ -5,3 +5,4 @@ disk.img
 *.img
 netdump.bat
 rustc-ice*
+Cargo.lock
