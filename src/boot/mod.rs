@@ -7,6 +7,7 @@ use uefi::mem::memory_map::{
 };
 use uefi::boot::*;
 use uefi::*;
+use uefi_raw::table::system::SystemTable;
 use crate::errors::BootError;
 
 #[derive(Copy, Clone)]
@@ -44,5 +45,14 @@ pub fn boot_sequence() -> Result<(UEFIResult, MemoryMapOwned), BootError> {
 			}
 		)
 	)
+}
 
+pub fn setup_kernel_offset(offset: u64) {
+	unsafe {
+		crate::std::log::info!("{:x}", offset);
+		crate::std::log::info!("{:?}", runtime::set_virtual_address_map(
+			&mut [],
+			core::mem::transmute(table::system_table_raw().unwrap().as_ptr() as u64)
+		));
+	}
 }

@@ -7,15 +7,15 @@ pub use lapic::{
 	LAPIC,
 	IOAPIC
 };
-
 pub use gdt::GDT;
-
 pub use interrupt::{
 	connect_signal,
 	connect_exception,
 	InterruptFrame,
 	TIMER
 };
+
+use crate::std::log;
 
 pub fn setup_core() {
 	gdt::per_core_setup();

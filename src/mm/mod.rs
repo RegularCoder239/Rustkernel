@@ -7,7 +7,10 @@ use uefi::mem::memory_map::{
 	MemoryType,
 	MemoryMap
 };
-use crate::std::PerCpu;
+use crate::std::{
+	PerCpu,
+	log
+};
 
 static INITALIZED: PerCpu<bool> = PerCpu::new(false);
 

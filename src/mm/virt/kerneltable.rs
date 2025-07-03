@@ -5,8 +5,11 @@ use crate::std::{
 use super::{
 	PageDirectory,
 	PageTable,
-	PAGE_SIZES
+	PageTableEntry,
+	PAGE_SIZES,
+	current_page_table
 };
+use crate::boot;
 
 struct KernelTable {
 	legacy_tables: [PageDirectory; 2],
@@ -36,6 +39,7 @@ static KERNEL_TABLE: Mutex<KernelTable> = Mutex::new(
 	}
 );
 static CURRENT_KERNEL_OFFSET: PerCpu<u64> = PerCpu::new(0x0);
+static LEGACY_ENABLED: Mutex<bool> = Mutex::new(true);
 
 impl KernelTable {
 	pub fn setup_mapped(&mut self, kernel_region: (u64, u64)) {
@@ -60,7 +64,11 @@ impl KernelTable {
 	}
 
 	pub fn map_to_pagetable(&self, page_table: &mut PageTable) {
-		page_table.directory[self.legacy_table_l4_idx] = self.legacy_tables[0].as_dir_entry();
+		if *LEGACY_ENABLED.lock() {
+			page_table.directory[self.legacy_table_l4_idx] = self.legacy_tables[0].as_dir_entry();
+		} else {
+			crate::std::log::info!("iejrieuriueriu");
+		}
 		page_table.directory[self.higher_half_table_l4_idx] = self.higher_half_l3_table.as_dir_entry();
 	}
 
@@ -82,11 +90,16 @@ pub fn setup(kernel_region: (u64, u64)) {
 	}
 
 	KERNEL_TABLE.lock().setup_mapped(kernel_region);
-	*CURRENT_KERNEL_OFFSET.deref_mut() = 0x0;
+
+	boot::setup_kernel_offset(KERNEL_TABLE.lock().kernel_offset);
 }
 
 pub fn setup_kernel_offset() {
 	*CURRENT_KERNEL_OFFSET.deref_mut() = KERNEL_TABLE.lock().kernel_offset;
+}
+
+pub fn remove_lower_half() {
+	*LEGACY_ENABLED.lock() = false;
 }
 
 pub fn kernel_offset() -> u64 {

@@ -54,7 +54,7 @@ pub struct TaskState {
 }
 
 pub struct Process {
-	page_table: Box<PageTable>,
+	pub page_table: Box<PageTable>,
 	task_state: TaskState,
 	pub r#type: ProcessType,
 	state: ProcessState,
@@ -143,7 +143,6 @@ impl TaskState {
 	pub fn load(&self) {
 		let last_state = &mut STATE_PER_CPU.deref_mut();
 		*STATE_PER_CPU.deref_mut() = *self;
-
 		call_asm!(load_state, self, last_state)
 	}
 }
@@ -226,8 +225,8 @@ impl Process {
 		self.page_table.load();
 
 		crate::mm::set_current_page_table(&mut self.page_table);
-
 		cpu::lapic::LAPIC::end_of_interrupt();
+
 		self.task_state.load()
 	}
 

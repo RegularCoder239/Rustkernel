@@ -19,6 +19,7 @@ pub fn boot_core_setup() {
 }
 
 pub fn per_core_setup() {
+
 	scheduler::init_yield_timer();
 	setup_exception_handlers();
 }

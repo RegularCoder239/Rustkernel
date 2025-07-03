@@ -36,6 +36,7 @@ use crate::virt::fs::{
 	FilePath,
 	FileStructure
 };
+use std::log;
 
 static UEFI_RESULT: Mutex<Option<UEFIResult>> = Mutex::new(None);
 
@@ -53,7 +54,6 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 }
 
 #[entry]
-#[allow(unreachable_code)]
 fn main() -> Status {
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");
@@ -64,9 +64,7 @@ fn main() -> Status {
 	hw::cpu::setup();
 
 	log::info!("Setting up boot setup process.");
-	Process::spawn_init_process(boot_core_setup as fn() -> !);
-
-	unreachable!()
+	Process::spawn_init_process(boot_core_setup as fn() -> !)
 }
 
 fn boot_core_setup() -> ! {
@@ -74,6 +72,7 @@ fn boot_core_setup() -> ! {
 	std::cli();
 
 	kernel::boot_core_setup();
+
 
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
@@ -86,7 +85,7 @@ fn boot_core_setup() -> ! {
 #[macro_export]
 macro_rules! uefi_result {
 	() => {
-		(*crate::UEFI_RESULT.lock()).as_ref().expect("No UEFI Result. UEFI Superseeded?")
+		(*crate::UEFI_RESULT.lock()).as_ref().expect("No UEFI Result.")
 	}
 }
 

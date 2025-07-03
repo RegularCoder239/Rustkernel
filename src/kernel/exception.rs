@@ -1,6 +1,7 @@
 use crate::{
 	hw::cpu,
-	std
+	std,
+	std::log
 };
 use super::{
 	current_process,
@@ -38,7 +39,6 @@ enum Error {
 }
 
 pub fn handle_exception(vector: u8, frame: cpu::InterruptFrame, error: u64) {
-	log::info!("{}", 82783);
 	let current_state = current_task_state();
 	let process = current_process().expect("Fatal exception in boot task.");
 	log::error!("Crash! PID:        {}", process.pid);

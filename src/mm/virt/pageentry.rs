@@ -10,21 +10,19 @@ pub struct PageTableEntry {
 }
 
 impl PageTableEntry {
+	pub const EMPTY: PageTableEntry = PageTableEntry {
+		content: 0x0
+	};
 	const fn new(addr: u64, flags: u64) -> PageTableEntry {
 		PageTableEntry {
 			content: addr | flags | 0x3
 		}
 	}
-	pub fn new_dir(dir_addr: u64) -> PageTableEntry {
+	pub const fn new_dir(dir_addr: u64) -> PageTableEntry {
 		Self::new(dir_addr, 0x0)
 	}
 	pub const fn new_entry(addr: u64) -> PageTableEntry {
 		Self::new(addr, 0x80)
-	}
-	pub const fn new_empty() -> PageTableEntry {
-		PageTableEntry {
-			content: 0x0
-		}
 	}
 	pub fn clear(&mut self) {
 		self.content = 0x0;

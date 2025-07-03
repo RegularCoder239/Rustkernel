@@ -1,8 +1,11 @@
 use crate::{
 	uefi_result,
-
-	std::LazyMutex,
-	std::Box
+};
+use crate::std::{
+	self,
+	LazyMutex,
+	Box,
+	log
 };
 
 static FRAMEBUFFER_POINTER: LazyMutex<Option<Box<[u32]>>> = LazyMutex::new(

@@ -9,9 +9,8 @@ panic = "abort"
 [dependencies]
 acpi = { version = "*", features = [], default-features = false }
 crc = "*"
-log = "*"
 paste = "*"
-uefi = { version = "*", features = ["logger"] }
+uefi = { version = "*", features = [], default-features = false }
 uefi-raw = "*"
 
 [build]

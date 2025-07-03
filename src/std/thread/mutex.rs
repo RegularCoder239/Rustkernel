@@ -31,9 +31,6 @@ impl<T> Mutex<T> {
 	}
 
 	pub fn lock(&self) -> MutexGuard<'_, T> {
-		if self.lock.is_locked() {
-			log::debug!("Mutex deadlock");
-		}
 		self.lock.lock();
 		MutexGuard::new(self)
 	}

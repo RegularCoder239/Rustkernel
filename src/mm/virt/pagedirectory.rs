@@ -15,14 +15,9 @@ pub struct PageDirectory {
 
 impl PageDirectory {
 	pub const EMPTY: PageDirectory = PageDirectory {
-		directory: [PageTableEntry::new_empty(); 512]
+		directory: [PageTableEntry::EMPTY; 512]
 	};
 
-	pub const fn new() -> PageDirectory {
-		PageDirectory {
-			directory: [PageTableEntry::new_empty(); 512]
-		}
-	}
 	pub fn new_fixed_offset(phys_addr: u64, size: u64) -> PageDirectory {
 		PageDirectory {
 			directory: core::array::from_fn(|idx| PageTableEntry::new_entry(phys_addr + size as u64 * idx as u64))

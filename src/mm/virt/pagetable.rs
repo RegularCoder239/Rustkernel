@@ -7,7 +7,8 @@ use super::{
 };
 use crate::std::{
 	Mutex,
-	Box
+	Box,
+	log
 };
 use core::{
 	arch::asm,
@@ -35,7 +36,7 @@ static GLOBAL_INDEX_MUTEX: Mutex<u64> = Mutex::new(0x0);
 
 impl PageTable {
 	pub const EMPTY: PageTable = PageTable {
-		directory: PageDirectory::new(),
+		directory: PageDirectory::EMPTY,
 		first_free_address: [0x0; 512],
 		temporary_directories: [PageDirectory::EMPTY; 0x3],
 		temporary_index: 0,
@@ -79,7 +80,7 @@ impl PageTable {
 		}
 		self
 	}
-	fn flush() {
+	pub fn flush() {
 		unsafe {
 			asm!("mov rax, cr3",
 				 "mov cr3, rax");

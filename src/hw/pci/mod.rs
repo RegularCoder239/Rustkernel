@@ -25,6 +25,7 @@ pub use ethernet::{
 use crate::{
 	hw::acpi::acpi_singleton,
 	std,
+	std::log
 };
 
 static INITALIZED: std::Lock = std::Lock::new_locked();

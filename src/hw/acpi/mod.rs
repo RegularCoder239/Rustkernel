@@ -3,11 +3,13 @@ mod handler;
 use handler::AcpiMemoryHandler;
 use crate::{
 	uefi_result,
-
-	std::Mutex,
-	std::exit,
-	std::StackVec,
-	std
+};
+use crate::std::{
+	self,
+	Mutex,
+	exit,
+	StackVec,
+	log
 };
 use acpi::{
 	AcpiTables,

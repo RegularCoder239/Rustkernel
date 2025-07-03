@@ -5,6 +5,18 @@ mod io;
 mod container;
 mod vec;
 mod reversebytes;
+mod log_intern;
+
+pub mod log {
+	pub use crate::{
+		info,
+		error,
+		debug
+	};
+	pub use super::log_intern::{
+		log
+	};
+}
 
 pub use vec::{
 	Vec,

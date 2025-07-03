@@ -23,7 +23,7 @@ pub fn load_smp_code() {
 
 #[unsafe(no_mangle)]
 pub fn smp_core_meth() -> ! {
-	log::info!("Booting non-boot cpu");
+	std::log::info!("Booting non-boot cpu");
 
 	mm::per_core_setup();
 

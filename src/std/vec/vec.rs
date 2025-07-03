@@ -179,7 +179,6 @@ impl<T, A: Allocator> IndexMut<usize> for Vec<T, A> {
 }
 impl<T, A: Allocator> IndexMut<usize> for &mut Vec<T, A> {
 	fn index_mut<'vec>(&'vec mut self, index: usize) -> &'vec mut T {
-		log::info!("{}", index);
 		let (chunk, remainder) = self.index_chunk_mut(index);
 		chunk.index_mut(remainder)
 	}

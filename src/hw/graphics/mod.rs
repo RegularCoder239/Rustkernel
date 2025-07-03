@@ -8,7 +8,10 @@ use display::{
 use color::{
 	Color
 };
-use crate::std::exit;
+use crate::std::{
+	exit,
+	log
+};
 
 fn fill_display(color: Color) {
 	if let Some(display) = display_framebuffer() {
