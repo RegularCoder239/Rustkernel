@@ -12,6 +12,8 @@ pub use gdt::GDT;
 
 pub use interrupt::{
 	connect_signal,
+	connect_exception,
+	InterruptFrame,
 	TIMER
 };
 
@@ -19,7 +21,6 @@ pub fn setup_core() {
 	gdt::per_core_setup();
 
 	interrupt::current_idt()
-		.init()
 		.load();
 
 	LAPIC::enable_hardware_interrupts();

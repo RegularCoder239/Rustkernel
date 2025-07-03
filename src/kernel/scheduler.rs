@@ -28,6 +28,7 @@ pub enum ProcessPrivilage {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+#[derive(Debug)]
 pub enum ProcessType {
 	INIT,
 	BOOT,
@@ -44,21 +45,21 @@ pub enum ProcessState {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct TaskState {
-	registers: [u64; 16],
-	rip: u64,
-	rflags: u64,
-	cs: u64,
-	ds: u64,
-	uid: u64
+	pub registers: [u64; 16],
+	pub rip: u64,
+	pub rflags: u64,
+	pub cs: u64,
+	pub ds: u64,
+	pub uid: u64
 }
 
 pub struct Process {
 	page_table: Box<PageTable>,
 	task_state: TaskState,
-	r#type: ProcessType,
+	pub r#type: ProcessType,
 	state: ProcessState,
 
-	pid: u64
+	pub pid: u64
 }
 
 pub trait RipCast {
@@ -250,7 +251,7 @@ impl Process {
 }
 
 pub fn init_yield_timer() {
-	cpu::connect_signal(cpu::TIMER, r#yield);
+	cpu::connect_signal(cpu::TIMER, |_| r#yield());
 }
 
 pub fn r#yield() {
@@ -258,9 +259,12 @@ pub fn r#yield() {
 		return;
 	}
 	cli();
-	let process_idx = PROCESSES.lock().into_iter().position(|process| process.state == ProcessState::IDLE && process.task_state != *STATE_PER_CPU.deref_mut());
 
-	if let Some(unwarped_process_idx) = process_idx {
+	let idx = PROCESSES.lock().into_iter().position(|process| {
+		(process.state == ProcessState::IDLE) && process.task_state != *STATE_PER_CPU.deref_mut()
+	});
+
+	if let Some(unwarped_process_idx) = idx {
 		unsafe {
 			PROCESSES.get_static().index_mut(unwarped_process_idx).switch();
 		}
@@ -272,6 +276,10 @@ pub fn r#yield() {
 
 pub fn current_process() -> Option<&'static mut Process> {
 	Process::from_pid(*PID_PER_CPU.deref_mut())
+}
+
+pub fn current_task_state() -> &'static TaskState {
+	STATE_PER_CPU.deref()
 }
 
 pub fn exit_current_process() -> ! {

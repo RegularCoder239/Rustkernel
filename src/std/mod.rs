@@ -36,7 +36,9 @@ pub use utils::{
 	With,
 	hltloop,
 	cli,
-	sti
+	sti,
+	cr2,
+	reset_cr2
 };
 pub use reversebytes::ReverseBytes;
 pub use io::{

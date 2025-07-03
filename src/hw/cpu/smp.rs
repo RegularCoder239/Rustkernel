@@ -23,7 +23,6 @@ pub fn load_smp_code() {
 
 #[unsafe(no_mangle)]
 pub fn smp_core_meth() -> ! {
-	//todo!("SMP Rework needed.");
 	log::info!("Booting non-boot cpu");
 
 	mm::per_core_setup();

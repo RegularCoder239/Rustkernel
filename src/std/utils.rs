@@ -39,6 +39,24 @@ pub fn sti() {
 	}
 }
 
+#[inline]
+pub fn cr2() -> u64 {
+	unsafe {
+		let cr2;
+		asm!("mov {0}, cr2",
+			 out(reg) cr2);
+		cr2
+	}
+}
+
+#[inline]
+pub fn reset_cr2() {
+	unsafe {
+		asm!("mov cr2, {0}",
+			 in(reg) 0x0);
+	}
+}
+
 #[macro_export]
 macro_rules! call_asm {
 	($meth: expr, $arg1: expr) => {
