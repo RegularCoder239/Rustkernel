@@ -222,15 +222,14 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 	if size < 0x1000 {
 		size = 0x1000;
 	}
-	log::info!("Free: {}", size);
-	*TOTAL_ALLOCATED.lock() -= size;
+
 	if size < 0x1000 {
 		return false;
 	}
-	while size % 0x200 != 0 {
-		size != 0x200;
+	while size % 0x200 != 0 && size != 0x1000 {
+		size /= 0x200;
 	}
-	if size != 8 {
+	if size != 0x1000 {
 		return false;
 	}
 
@@ -241,6 +240,7 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 			0x200000 => _1g_buddy.free_2m(addr),
 			_ => panic!("Internal bug.")
 		} {
+			*TOTAL_ALLOCATED.lock() -= size;
 			return true;
 		}
 	}

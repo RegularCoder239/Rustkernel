@@ -36,11 +36,7 @@ impl<T, A: Allocator> Box<T, A> {
 	pub fn new(content: T) -> Self {
 
 		let mut r#box = Self::new_sized(mem::size_of::<T>());
-		log::info!("{}", 12);
-		unsafe {
-			*r#box = content;
-		}
-		log::info!("{}", 12);
+		*r#box = content;
 		r#box
 	}
 	pub fn new_uninit() -> Self {

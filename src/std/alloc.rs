@@ -64,9 +64,8 @@ impl VirtualMapper for KernelGlobalMapper {
 			}
 		)
 	}
-	unsafe fn unmap(_: u64, _: usize) {
-		log::info!("Unmapped");
-	//	addr.unmap(amount)
+	unsafe fn unmap(addr: u64, amount: usize) {
+		addr.unmap(amount);
 	}
 }
 

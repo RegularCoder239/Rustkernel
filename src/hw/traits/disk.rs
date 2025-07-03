@@ -43,7 +43,5 @@ pub fn setup_disks() -> ! {
 		}
 	}
 
-	log::info!("{}", *crate::mm::buddy::TOTAL_ALLOCATED.lock());
-
 	crate::std::exit()
 }
