@@ -48,6 +48,12 @@ impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + 'vec> Iterator for VecI
 	}
 }
 
+impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + 'vec> core::iter::ExactSizeIterator for VecIter<'vec, T, V> {
+	fn len(&self) -> usize {
+		self.vec.len()
+	}
+}
+
 impl<'vec, T, V: Index<usize> + IndexMut<usize>> VecIterMut<'vec, T, V> {
 	pub fn new(vec: V) -> VecIterMut<'vec, T, V> {
 		VecIterMut {

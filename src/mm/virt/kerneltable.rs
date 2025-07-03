@@ -66,8 +66,6 @@ impl KernelTable {
 	pub fn map_to_pagetable(&self, page_table: &mut PageTable) {
 		if *LEGACY_ENABLED.lock() {
 			page_table.directory[self.legacy_table_l4_idx] = self.legacy_tables[0].as_dir_entry();
-		} else {
-			crate::std::log::info!("iejrieuriueriu");
 		}
 		page_table.directory[self.higher_half_table_l4_idx] = self.higher_half_l3_table.as_dir_entry();
 	}
@@ -77,7 +75,7 @@ impl KernelTable {
 
 		while region_addr < kernel_region.1 {
 			let region_end = (region_addr + 0x200000).min(kernel_region.1);
-			self.higher_half_l1_tables[self.higher_half_l1_table_amount] = PageDirectory::new_mapped_nonaligned((region_addr, region_end), 0x1000);
+			self.higher_half_l1_tables[self.higher_half_l1_table_amount] = PageDirectory::new_mapped_nonaligned((region_addr, region_end), 0x1000, 0);
 			region_addr = region_end;
 			self.higher_half_l1_table_amount += 1;
 		}

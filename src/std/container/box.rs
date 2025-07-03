@@ -26,7 +26,7 @@ use crate::std::{
 
 pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 	NonNull<T>,
-	PhantomData<A>,
+	A,
 	usize
 );
 
@@ -53,13 +53,13 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 			NonNull::new(
 				allocate!(ptr_with_alloc, A, T, size).unwrap()
 			).unwrap(),
-			PhantomData,
+			A::DEFAULT,
 			size
 		)
 	}
 	pub fn from_raw_address_sized(addr: u64, size: usize) -> Box<T, A> {
 		Self::from_raw_virt_address_sized(
-			A::VirtualMapper::map::<u8>(stack_vec!{ addr }, size).unwrap() as u64,
+			A::VirtualMapper::default().map::<u8>(stack_vec!{ addr }, size).unwrap() as u64,
 			size
 		)
 	}
@@ -75,7 +75,7 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 					)
 				)
 			).unwrap(),
-			PhantomData,
+			A::DEFAULT,
 			size
 		)
 	}
@@ -154,7 +154,7 @@ impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
 			if ptr as u64 == 0 {
 				return;
 			}
-			A::free(ptr, self.alloc_len())
+			self.1.free(ptr, self.alloc_len())
 		}
 	}
 }

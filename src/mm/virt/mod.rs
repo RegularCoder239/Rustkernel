@@ -9,7 +9,9 @@ pub use pageentry::{
 };
 pub use mapped::{
 	Mapped,
-	Address
+	Address,
+	MappingInfo,
+	MappingFlags
 };
 pub use pagedirectory::{
 	PageDirectory

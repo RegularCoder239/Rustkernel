@@ -12,6 +12,7 @@ crc = "*"
 paste = "*"
 uefi = { version = "*", features = [], default-features = false }
 uefi-raw = "*"
+elf_rs = "*"
 
 [build]
 rustflags = ["link-args=-Tlink.x", "-C", "/debug:dwarf", "relocation-model=pie", "code-model=kernel", "opt-level=1", "lto=yes"]

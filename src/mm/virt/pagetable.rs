@@ -117,9 +117,10 @@ impl PageTable {
 		}
 		Some(&mut directory[virt_addr as usize / size])
 	}
-	fn map_page(&mut self, virt_addr: u64, phys_addr: u64, size: usize) -> bool {
+	fn map_page(&mut self, virt_addr: u64, phys_addr: u64, size: usize, flags: u64) -> bool {
 		if let Some(entry) = self.get_page_entry_mut(virt_addr, size) {
 			entry.set_addr(phys_addr, size);
+			entry.set_flags(flags);
 			true
 		} else {
 			false
@@ -153,7 +154,7 @@ impl PageTable {
 		log::error!("Attempt to gather physical address of invalid virtual address: {:x}", virtual_address_cpy);
 		return None;
 	}
-	pub fn mapped_at<X: Index<usize, Output = u64>>(&mut self, addr_space: u64, phys_addresses: X, phys_addresses_amount: usize, mut size: usize) -> Result<u64, PagingError> {
+	pub fn mapped_at<X: Index<usize, Output = u64>>(&mut self, addr_space: u64, phys_addresses: X, phys_addresses_amount: usize, mut size: usize, flags: u64) -> Result<u64, PagingError> {
 		assert!(self.initalized, "Attempt to map in uninitalized page table.");
 		if size < 0x1000 {
 			size = 0x1000;
@@ -175,7 +176,8 @@ impl PageTable {
 						  } else {
 							  phys_addresses[phys_addresses_amount-1] + ((idx-phys_addresses_amount) * page_size) as u64
 						  },
-						  page_size);
+						  page_size,
+						  flags);
 			idx += 1;
 		}
 
@@ -183,11 +185,12 @@ impl PageTable {
 		Ok(first_free_address)
 	}
 
-	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize) -> Result<u64, PagingError> {
+	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize, flags: u64) -> Result<u64, PagingError> {
 		for (offset, page_size) in virt_addr_iterator(phys_addr, amount) {
 			self.map_page(virt_addr + offset,
 						  phys_addr + offset,
-				 page_size);
+						  page_size,
+						  flags);
 		}
 		PageTable::flush();
 		Ok(virt_addr)

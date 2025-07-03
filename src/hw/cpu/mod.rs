@@ -15,7 +15,10 @@ pub use interrupt::{
 	TIMER
 };
 
-use crate::std::log;
+use crate::std::{
+	log,
+	self
+};
 
 pub fn setup_core() {
 	gdt::per_core_setup();

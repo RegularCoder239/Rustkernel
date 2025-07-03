@@ -1,6 +1,7 @@
 pub mod r#box;
 pub mod unsaferef;
 pub mod string;
+pub mod mutableref;
 
 use core::mem::{
 	self,

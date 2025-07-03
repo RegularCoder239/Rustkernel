@@ -19,10 +19,10 @@ impl PageTableEntry {
 		}
 	}
 	pub const fn new_dir(dir_addr: u64) -> PageTableEntry {
-		Self::new(dir_addr, 0x0)
+		Self::new(dir_addr, 0x4)
 	}
-	pub const fn new_entry(addr: u64) -> PageTableEntry {
-		Self::new(addr, 0x80)
+	pub const fn new_entry(addr: u64, flags: u64) -> PageTableEntry {
+		Self::new(addr, 0x80 | flags as u64)
 	}
 	pub fn clear(&mut self) {
 		self.content = 0x0;
@@ -32,6 +32,9 @@ impl PageTableEntry {
 		if size != 0x1000 {
 			self.content |= 0x80;
 		}
+	}
+	pub fn set_flags(&mut self, flags: u64) {
+		self.content ^= flags;
 	}
 	pub fn addr(&self) -> u64 {
 		self.content & !0xfff

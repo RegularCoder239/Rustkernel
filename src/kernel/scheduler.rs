@@ -180,6 +180,7 @@ impl Process {
 	pub fn spawn_init_process<EntryAddr: RipCast>(entry_addr: EntryAddr) -> ! {
 		let mut process = Process::new(ProcessPrivilage::KERNEL, entry_addr).expect("Failed to crate boot setup process.");
 		process.set_pid(u64::MAX);
+		process.task_state.rflags = 0x2;
 		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x15000).expect("Failed to allocate stack for boot setup process") as u64 + 0x15000);
 
 		process.switch_init()

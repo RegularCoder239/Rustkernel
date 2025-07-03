@@ -28,7 +28,8 @@ pub use container::{
 	SharedRef,
 	r#box::Box,
 	string::String,
-	unsaferef::UnsafeRef
+	unsaferef::UnsafeRef,
+	mutableref::MutableRef
 };
 
 pub use thread::{
@@ -50,7 +51,9 @@ pub use utils::{
 	cli,
 	sti,
 	cr2,
-	reset_cr2
+	reset_cr2,
+	wrmsr,
+	rdmsr
 };
 pub use reversebytes::ReverseBytes;
 pub use io::{

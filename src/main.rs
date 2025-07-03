@@ -55,10 +55,15 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 
 #[entry]
 fn main() -> Status {
+
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");
 
 	let (uefi_result, memory_map) = boot::boot_sequence().expect("No memory map given.");
+	unsafe {
+		let idtr = [0_u64, 0];
+		core::arch::asm!("push 0x2; popf; cli; lidt [{0}];", in(reg) idtr.as_ptr())
+	}
 	*UEFI_RESULT.lock() = Some(uefi_result);
 	mm::setup(memory_map);
 	hw::cpu::setup();
@@ -70,9 +75,9 @@ fn main() -> Status {
 fn boot_core_setup() -> ! {
 	log::info!("Boot process successfully started.");
 	std::cli();
+	std::wrmsr(0xc0000080, 0xd01);
 
 	kernel::boot_core_setup();
-
 
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
