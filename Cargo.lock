@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
  "acpi",
  "crc",
- "log",
  "paste",
  "uefi",
  "uefi-raw 0.11.0",
