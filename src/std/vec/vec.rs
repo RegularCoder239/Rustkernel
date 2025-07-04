@@ -11,7 +11,9 @@ use super::{
 use core::{
 	marker::PhantomData,
 	ops::Index,
-	ops::IndexMut
+	ops::IndexMut,
+	cmp::PartialEq,
+	cmp::PartialOrd
 };
 
 pub trait VecBase<T> {
@@ -107,6 +109,59 @@ impl<T, A: Allocator> Vec<T, A> {
 		}
 
 		self.capacity += self.capacity.next_power_of_two() * 2;
+	}
+	pub fn swap(&mut self, index1: usize, index2: usize) {
+		if index1 != index2 {
+			unsafe {
+				core::ptr::swap(
+					self.index_ptr_mut(index1),
+					self.index_ptr_mut(index2)
+				)
+			}
+		}
+	}
+	pub fn sort(&mut self, meth: fn(&T, &T) -> bool) {
+		let mut repeat = true;
+		while (repeat) {
+			repeat = false;
+			for idx in 0..self.len() - 1 {
+				if meth(&self[idx], &self[idx+1]) {
+					self.swap(idx, idx + 1);
+					repeat = true;
+				}
+			}
+		}
+	}
+	pub fn fastposition<T2: PartialEq + PartialOrd>(&self, meth: fn(&T) -> T2, what: T2) -> Option<usize> {
+		if self.len() > 12 {
+			let mut idx = 0;
+			while meth(&self[idx]) < what || idx + 8 < self.len() {
+				idx += 8;
+			}
+			if meth(&self[idx]) == what {
+				return Some(idx);
+			}
+			while meth(&self[idx]) > what || idx > 4 {
+				idx -= 4;
+			}
+			if meth(&self[idx]) == what {
+				return Some(idx);
+			}
+			for idx2 in idx..(idx + 8).min(self.len()) {
+				if meth(&self[idx2]) == what {
+					return Some(idx2);
+				}
+			}
+			return None;
+		} else {
+			self.into_iter().position(|it| meth(&it) == what)
+		}
+	}
+
+	pub fn fastfind<T2: PartialEq + PartialOrd>(&self, meth: fn(&T) -> T2, what: T2) -> Option<&T> {
+		Some(
+			self.index(self.fastposition(meth, what)?)
+		)
 	}
 }
 
