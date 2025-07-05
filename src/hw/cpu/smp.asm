@@ -53,7 +53,7 @@ skip_msr_setup:
 	jmp setup_paging
 setup_paging:
 	mov %cr4, %eax
-	or $0x676, %eax
+	or $0x10676, %eax
 	mov %eax, %cr4
 
 	lea page_table_l4, %eax

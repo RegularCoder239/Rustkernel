@@ -1,6 +1,7 @@
-pub mod boottask;
 pub mod scheduler;
+mod boottask;
 mod exception;
+mod syscall;
 
 pub use scheduler::{
 	r#yield,
@@ -18,10 +19,10 @@ pub use exception::{
 pub fn boot_core_setup() {
 	per_core_setup();
 	boottask::BootTask::add_boot_tasks();
+	syscall::setup();
 }
 
 pub fn per_core_setup() {
-
 	scheduler::init_yield_timer();
 	setup_exception_handlers();
 }

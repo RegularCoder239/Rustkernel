@@ -50,6 +50,7 @@ pub struct TaskState {
 	pub rflags: u64,
 	pub cs: u64,
 	pub ds: u64,
+	pub gs: u64,
 	pub uid: u64
 }
 
@@ -102,6 +103,7 @@ impl TaskState {
 		rflags: 0x0,
 		cs: 0x0,
 		ds: 0x0,
+		gs: 0x0,
 		uid: 0xffffffffffffffff
 	};
 	pub fn new<R: RipCast>(s_base: u16, rsp: u64, rip: R) -> Option<TaskState> {
@@ -129,6 +131,7 @@ impl TaskState {
 			rflags: 0x202,
 			cs: s_base as u64,
 			ds: (s_base + 0x8) as u64,
+			gs: 0x0,
 			uid: *UID_COUNTER.lock()
 		})
 	}

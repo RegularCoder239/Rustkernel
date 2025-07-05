@@ -151,7 +151,7 @@ impl GDT {
 				 "mov ss, {3:x}",
 				 "mov es, {0:x}",
 				 "mov fs, {0:x}",
-				 "mov gs, {0:x}",
+				 "mov gs, {3:x}",
 				 "push 0x8",
 				 "lea rax, {2}",
 				 "push rax",

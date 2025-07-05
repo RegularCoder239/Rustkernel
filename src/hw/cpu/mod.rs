@@ -2,6 +2,8 @@ pub mod lapic;
 pub mod smp;
 pub mod interrupt;
 pub mod gdt;
+pub mod syscall;
+pub mod gs;
 
 pub use lapic::{
 	LAPIC,
@@ -25,15 +27,22 @@ pub fn setup_core() {
 
 	interrupt::current_idt()
 		.load();
+	std::cli();
 
 	LAPIC::enable_hardware_interrupts();
+	syscall::setup();
 }
 
-pub fn setup() {
+pub fn setup1() {
 	log::info!("Setting up CPU.");
 
 	setup_core();
 	IOAPIC::activate();
+}
+
+pub fn setup2() {
+	log::info!("Setting up GS.");
+	gs::init();
 }
 
 pub fn awake_non_boot_cpus() {

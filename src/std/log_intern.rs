@@ -10,19 +10,25 @@ struct PortLogger;
 #[macro_export]
 macro_rules! info {
 	($($args: tt)+) => {
-		crate::std::log::log("INFO", format_args!($($args)+));
+		crate::std::log::log(" INFO  ", format_args!($($args)+));
 	};
 }
 #[macro_export]
 macro_rules! error {
 	($($args: tt)+) => {
-		crate::std::log::log("ERROR", format_args!($($args)+));
+		crate::std::log::log(" ERROR ", format_args!($($args)+));
 	};
 }
 #[macro_export]
 macro_rules! debug {
 	($($args: tt)+) => {
-		crate::std::log::log("DEBUG", format_args!($($args)+));
+		crate::std::log::log(" DEBUG ", format_args!($($args)+));
+	};
+}
+#[macro_export]
+macro_rules! warn {
+	($($args: tt)+) => {
+		crate::std::log::log("WARNING", format_args!($($args)+));
 	};
 }
 

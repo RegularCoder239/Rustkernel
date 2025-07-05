@@ -12,7 +12,8 @@ pub mod log {
 	pub use crate::{
 		info,
 		error,
-		debug
+		debug,
+		warn
 	};
 	pub use super::log_intern::{
 		log
@@ -40,7 +41,9 @@ pub use thread::{
 	lock::Lock,
 	lazymutex::LazyMutex,
 	percpu::PerCpuLazy,
-	percpu::PerCpu
+	percpu::PerCpu,
+	count_cores,
+	current_core
 };
 pub use alloc::{
 	Allocator,

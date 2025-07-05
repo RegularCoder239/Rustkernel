@@ -2,7 +2,8 @@ use core::arch::asm;
 use crate::std::{
 	Vec,
 	PerCpuLazy,
-	Mutex
+	Mutex,
+	VecBase
 };
 use paste::paste;
 use super::{
@@ -251,11 +252,14 @@ pub fn handle_interrupt(vector: u8) {
 pub fn handle_exception(vector: u8, frame: InterruptFrame, err_code: u64) {
 	let exception_meths = EXCEPTION_CONNECTION_METHS.try_lock();
 	if let Some(methods) = exception_meths.as_ref() {
+		if methods.deref().len() == 0 {
+			panic!("Fatal exception with no exception handler.");
+		}
 		for method in methods.deref() {
 			method(vector, frame, err_code);
 		}
 	} else {
-		panic!("Fatal exception in exception handler");
+		panic!("Fatal exception in exception handler.");
 	}
 
 	lapic::LAPIC::end_of_interrupt();

@@ -1,4 +1,5 @@
 #![feature(abi_x86_interrupt)]
+#![feature(naked_functions_rustic_abi)]
 #![feature(coerce_unsized)]
 #![feature(ptr_internals)]
 #![feature(ptr_metadata)]
@@ -37,6 +38,7 @@ use crate::virt::fs::{
 	FileStructure
 };
 use std::log;
+use core::arch::x86_64::__cpuid;
 
 static UEFI_RESULT: Mutex<Option<UEFIResult>> = Mutex::new(None);
 
@@ -59,14 +61,28 @@ fn main() -> Status {
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");
 
+
+
 	let (uefi_result, memory_map) = boot::boot_sequence().expect("No memory map given.");
 	unsafe {
+		let cpuid_features = __cpuid(0x1);
+		let cpuid_features_extended = __cpuid(0x7);
+		if cpuid_features_extended.ebx & 0x1 != 0x1 {
+			panic!("Requires a CPU with the wrgsbase instruction.");
+		}
+
 		let idtr = [0_u64, 0];
-		core::arch::asm!("push 0x2; popf; cli; lidt [{0}];", in(reg) idtr.as_ptr())
+		core::arch::asm!("push 0x2",
+						 "popf",
+						 "cli",
+						 "lidt [{0}]",
+						 "mov rax, 0x10676",
+						 "mov cr4, rax",
+						 in(reg) idtr.as_ptr())
 	}
 	*UEFI_RESULT.lock() = Some(uefi_result);
 	mm::setup(memory_map);
-	hw::cpu::setup();
+	hw::cpu::setup1();
 
 	log::info!("Setting up boot setup process.");
 	Process::spawn_init_process(boot_core_setup as fn() -> !)
@@ -77,7 +93,9 @@ fn boot_core_setup() -> ! {
 	std::cli();
 	std::wrmsr(0xc0000080, 0xd01);
 
+
 	kernel::boot_core_setup();
+	hw::cpu::setup2();
 
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();

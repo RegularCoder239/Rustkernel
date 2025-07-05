@@ -92,23 +92,22 @@ impl<T, A: Allocator> Vec<T, A> {
 		)
 	}
 	fn grow(&mut self) {
-		if self.length < self.capacity {
-			return;
-		}
-		if self.capacity == 0 {
-			self.capacity = 1;
-		}
-		let mut new_chunk = SharedRef::<VecChunk<T, A>>::new(
-			VecChunk::<T, A>::new(self.capacity.next_power_of_two() * 2)
-		);
-		if self.last.is_none() {
-			self.last = new_chunk.split();
-			self.begin = new_chunk;
-		} else {
-			*self.last.next_mut() = new_chunk;
-		}
+		while self.length >= self.capacity {
+			if self.capacity == 0 {
+				self.capacity = 1;
+			}
+			let mut new_chunk = SharedRef::<VecChunk<T, A>>::new(
+				VecChunk::<T, A>::new(self.capacity.next_power_of_two() * 2)
+			);
+			if self.last.is_none() {
+				self.last = new_chunk.split();
+				self.begin = new_chunk;
+			} else {
+				*self.last.next_mut() = new_chunk;
+			}
 
-		self.capacity += self.capacity.next_power_of_two() * 2;
+			self.capacity += self.capacity.next_power_of_two() * 2;
+		}
 	}
 	pub fn swap(&mut self, index1: usize, index2: usize) {
 		if index1 != index2 {
@@ -162,6 +161,18 @@ impl<T, A: Allocator> Vec<T, A> {
 		Some(
 			self.index(self.fastposition(meth, what)?)
 		)
+	}
+}
+
+impl<T: Default, A: Allocator> Vec<T, A> {
+	pub fn resize(&mut self, target: usize) {
+		let diff = target - self.length;
+		let begin = self.length;
+		self.length = target;
+		self.grow();
+		for idx in 0..diff {
+			*self.index_mut(begin + idx) = T::default();
+		}
 	}
 }
 

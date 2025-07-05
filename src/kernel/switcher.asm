@@ -30,8 +30,13 @@ load_state:
 	mov %rax, 0x90(%rsi)
 	mov %ds, %ax
 	mov %rax, 0x98(%rsi)
+	rdgsbase %rax
+	mov %rax, 0xa0(%rsi)
 
 jump_state:
+	mov %rax, 0xa0(%rdi)
+	wrgsbase %rax
+
 	push 0x98(%rdi)
 	push 0x38(%rdi)
 	push 0x88(%rdi)
