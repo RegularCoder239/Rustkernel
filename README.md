@@ -1,4 +1,5 @@
 # Rustkernel
+This kernel is still in early development.
 ## Warning
 This kernel isn't designed for production and hasn't been tested
 for real hardware yet. It has many major issues, that weren't been fixed yet.
