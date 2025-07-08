@@ -15,6 +15,7 @@ use core::{
 	ops::Index,
 	iter::*
 };
+use crate::mm::align_size;
 
 #[derive(Copy, Clone)]
 pub struct PageTable {
@@ -87,8 +88,8 @@ impl PageTable {
 		}
 	}
 	pub fn is_free(&self, virt_addr: u64, size: usize) -> bool {
-		for (s, page_size) in virt_addr_iterator(virt_addr, size) {
-			let entry = self.get_page_entry(virt_addr + s, page_size);
+		for s in virt_addr_iterator(virt_addr, size) {
+			let entry = self.get_page_entry(virt_addr + s, align_size(size));
 			if entry.is_some() && entry.unwrap().is_present() {
 				return false;
 			}
@@ -106,8 +107,7 @@ impl PageTable {
 		}
 		Some(&directory[virt_addr as usize / size])
 	}
-	fn get_page_entry_mut(&mut self, virt_addr_: u64, size: usize) -> Option<&mut PageTableEntry> {
-		let mut virt_addr = virt_addr_;
+	fn get_page_entry_mut(&mut self, mut virt_addr: u64, size: usize) -> Option<&mut PageTableEntry> {
 		let mut directory: &mut PageDirectory = &mut self.directory;
 
 		for level in (size_as_page_level(size)+1..Self::LEVELS).rev() {
@@ -162,22 +162,25 @@ impl PageTable {
 
 		let free_map_idx: usize = addr_space as usize / 0x8000000000;
 		let mut first_free_address = self.first_free_address[free_map_idx] + addr_space;
-		first_free_address += size as u64 - (first_free_address % size as u64);
+		let aligned_size = align_size(size);
+		first_free_address += aligned_size as u64 - (first_free_address % aligned_size as u64);
 		while !self.is_free(first_free_address, size) {
-			first_free_address += size as u64;
+			first_free_address += aligned_size as u64;
 		}
 		self.first_free_address[free_map_idx] = first_free_address + size as u64 - addr_space;
 
 		let mut idx = 0;
-		for (offset, page_size) in virt_addr_iterator(first_free_address, size) {
-			self.map_page(first_free_address + offset,
-						  if idx < phys_addresses_amount {
-							  phys_addresses[idx]
-						  } else {
-							  phys_addresses[phys_addresses_amount-1] + ((idx-phys_addresses_amount) * page_size) as u64
-						  },
-						  page_size,
-						  flags);
+		for offset in virt_addr_iterator(first_free_address, size) {
+			if !self.map_page(first_free_address + offset,
+							  if idx < phys_addresses_amount {
+								  phys_addresses[idx]
+							  } else {
+							 	  phys_addresses[phys_addresses_amount-1] + ((idx-phys_addresses_amount) * aligned_size) as u64
+							  },
+							  aligned_size,
+							  flags) {
+				panic!("Mapping failed.");
+			}
 			idx += 1;
 		}
 
@@ -186,18 +189,18 @@ impl PageTable {
 	}
 
 	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize, flags: u64) -> Result<u64, PagingError> {
-		for (offset, page_size) in virt_addr_iterator(phys_addr, amount) {
+		for offset in virt_addr_iterator(phys_addr, amount) {
 			self.map_page(virt_addr + offset,
 						  phys_addr + offset,
-						  page_size,
+						  align_size(amount),
 						  flags);
 		}
 		PageTable::flush();
 		Ok(virt_addr)
 	}
 	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> bool {
-		for (offset, page_size) in virt_addr_iterator(virt_addr, amount) {
-			if !self.unmap_page(virt_addr + offset, page_size) {
+		for offset in virt_addr_iterator(virt_addr, amount) {
+			if !self.unmap_page(virt_addr + offset, align_size(amount)) {
 				return false;
 			}
 		}
@@ -230,12 +233,8 @@ fn get_page_table_index(mut addr: u64, level: u64) -> (usize, u64) {
   addr % size as u64
 	)
 }
-fn virt_addr_iterator(_: u64, amount: usize) -> Zip<core::iter::StepBy<core::ops::Range<u64>>, Take<Repeat<usize>>> {
-	let aligned_amount = 0x1000;
-	zip(
-		(0..amount as u64).step_by(aligned_amount),
-		repeat(aligned_amount).take(amount)
-	)
+fn virt_addr_iterator(_: u64, amount: usize) -> core::iter::StepBy<core::ops::Range<u64>> {
+	(0..amount as u64).step_by(align_size(amount))
 }
 
 pub fn setup_global_table() {

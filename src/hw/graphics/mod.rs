@@ -1,8 +1,9 @@
 mod display;
 mod color;
 
-use display::{
-	display_framebuffer
+pub use display::{
+	framebuffer,
+	resolution
 };
 
 use color::{
@@ -12,16 +13,12 @@ use crate::std::{
 	exit,
 	log
 };
+use crate::uefi_result;
 
-fn fill_display(color: Color) {
-	if let Some(display) = display_framebuffer() {
-		display.fill(color.to_u32());
+pub fn available() -> bool {
+	if let Some(result) = uefi_result!() {
+		result.frame_buffer.is_some()
+	} else {
+		false
 	}
-}
-
-pub fn setup() -> ! {
-	log::info!("Setting up graphics.");
-	fill_display(Color::BG);
-
-	exit()
 }

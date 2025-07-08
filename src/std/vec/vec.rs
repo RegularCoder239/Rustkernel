@@ -48,13 +48,14 @@ impl<T, A: Allocator> Vec<T, A> {
 		Some(vec)
 	}
 
-	pub fn push_back(&mut self, what: T) {
-
+	pub fn push_back(&mut self, what: T) -> &mut T {
 		let idx = self.length;
 		self.length += 1;
 		self.grow();
 
-		*self.index_mut(idx) = what;
+		let ptr = self.index_mut(idx);
+		*ptr = what;
+		ptr
 	}
 
 	fn index_chunk(&self, mut index: usize) -> (&VecChunk<T, A>, usize) {

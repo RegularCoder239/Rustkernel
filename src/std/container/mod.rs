@@ -2,6 +2,7 @@ pub mod r#box;
 pub mod unsaferef;
 pub mod string;
 pub mod mutableref;
+pub mod mutablecell;
 
 use core::mem::{
 	self,
@@ -38,16 +39,18 @@ impl<T> LazyBox<T> {
 	}
 	pub fn get(&mut self) -> &T {
 		if self.content.is_none() {
-			self.content = Some(
-				(self.method)()
-			);
+			self.content = Some((unsafe {
+				core::mem::transmute::<u64, fn() -> T>(self.method as u64 + crate::mm::kernel_offset())
+			})());
 		}
 		self.content.as_ref().unwrap()
 	}
 
 	pub fn get_mut(&mut self) -> &mut T {
 		if self.content.is_none() {
-			self.content = Some((self.method)());
+			self.content = Some((unsafe {
+				core::mem::transmute::<u64, fn() -> T>(self.method as u64 + crate::mm::kernel_offset())
+			})());
 		}
 		self.content.as_mut().unwrap()
 	}

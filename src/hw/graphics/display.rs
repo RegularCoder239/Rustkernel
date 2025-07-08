@@ -8,10 +8,16 @@ use crate::std::{
 	log
 };
 
+static FRAMEBUFFER_RESOLUTION: LazyMutex<Option<(usize, usize)>> = LazyMutex::new(
+	|| Some(
+		uefi_result!().unwrap().frame_buffer?.resolution
+	)
+);
 static FRAMEBUFFER_POINTER: LazyMutex<Option<Box<[u32]>>> = LazyMutex::new(
 	|| {
-		let frame_buffer_lock = uefi_result!().frame_buffer;
+		let frame_buffer_lock = uefi_result!().unwrap().frame_buffer;
 		let resolution = frame_buffer_lock?.resolution;
+
 		Some(
 			Box::from_raw_address_sized(
 				frame_buffer_lock?.buffer as u64,
@@ -21,16 +27,14 @@ static FRAMEBUFFER_POINTER: LazyMutex<Option<Box<[u32]>>> = LazyMutex::new(
 	}
 );
 
-pub fn display_framebuffer() -> Option<&'static mut [u32]> {
-	let pointer = unsafe {
-		FRAMEBUFFER_POINTER.get_static()
-	};
-	if pointer.is_none() {
-		log::info!("No display found");
-		None
-	} else {
-		Some(
-			pointer.as_mut().unwrap().as_slice_mut()
-		)
-	}
+pub fn framebuffer() -> Option<&'static mut [u32]> {
+	Some(
+		unsafe {
+			FRAMEBUFFER_POINTER.get_static()
+		}.as_mut()?.as_slice_mut()
+	)
+}
+
+pub fn resolution() -> Option<(usize, usize)> {
+	FRAMEBUFFER_RESOLUTION.lock().clone()
 }

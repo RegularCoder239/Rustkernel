@@ -75,7 +75,7 @@ pub fn setup() -> ! {
 	let table = unsafe {
 		AcpiTables::from_rsdp(
 			AcpiMemoryHandler {},
-			uefi_result!().config.acpi as usize // Why is this so stupid!!
+			uefi_result!().unwrap().config.acpi as usize // Why is this so stupid!!
 		).expect("No ACPI found.")
 	};
 

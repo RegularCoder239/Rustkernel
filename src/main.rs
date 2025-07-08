@@ -84,12 +84,12 @@ fn main() -> Status {
 	mm::setup(memory_map);
 	hw::cpu::setup1();
 
-	log::info!("Setting up boot setup process.");
+	log::debug!("Setting up boot setup process.");
 	Process::spawn_init_process(boot_core_setup as fn() -> !)
 }
 
 fn boot_core_setup() -> ! {
-	log::info!("Boot process successfully started.");
+	log::debug!("Boot process successfully started.");
 	std::cli();
 	std::wrmsr(0xc0000080, 0xd01);
 
@@ -108,7 +108,7 @@ fn boot_core_setup() -> ! {
 #[macro_export]
 macro_rules! uefi_result {
 	() => {
-		(*crate::UEFI_RESULT.lock()).as_ref().expect("No UEFI Result.")
+		(*crate::UEFI_RESULT.lock()).as_ref()
 	}
 }
 

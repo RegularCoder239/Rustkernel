@@ -47,23 +47,20 @@ impl BuddyList {
 	const INVALID: BuddyList = BuddyList {
 		content: [Buddy1G::INVALID; 16]
 	};
-	pub fn add_1g_region(&mut self, addr: u64) -> Result<(), BuddyError> {
-		let idx = self.position_empty();
-		self.content[idx.ok_or(BuddyError::_1gIndexFault)?] = Buddy1G {
+	pub fn add_1g_region(&mut self, addr: u64) {
+		self.content[self.position_empty().expect("Failed to find 1G region. Too much RAM?")] = Buddy1G {
 			children: core::array::from_fn(|offset| {
 				Buddy2M::new(offset as u64 * 0x200000 + addr)
 			}),
 			buddy_base: Buddy::FREE
 		};
-		Ok(())
 	}
-	pub fn add_2m_region(&mut self, addr: u64) -> Result<(), BuddyError> {
-		let _1g_buddy: &mut Buddy1G = self.find_non_full().ok_or(BuddyError::_1gIndexFault)?;
-		let _2m_buddy_idx: usize = _1g_buddy.position_2m_empty().ok_or(BuddyError::_2mIndexFault)?;
+	pub fn add_2m_region(&mut self, addr: u64) {
+		let _1g_buddy: &mut Buddy1G = self.find_invalid_or_nonfull().expect("Failed to find 1G region for 2M addition. Too much RAM?");
+		let _2m_buddy_idx: usize = _1g_buddy.position_2m_invalid().unwrap();
 		_1g_buddy.buddy_base.flags = FREE;
 		_1g_buddy.children.as_mut()[_2m_buddy_idx] = Buddy2M::new(addr);
 		_1g_buddy.buddy_base.free( _2m_buddy_idx);
-		Ok(())
 	}
 	pub fn position(&self, meth: for<'a> fn(&'a Buddy1G) -> bool) -> Option<usize> {
 		self.content.iter().position(meth)
@@ -78,6 +75,9 @@ impl BuddyList {
 	pub fn find_empty(&mut self) -> Option<&mut Buddy1G> {
 		self.find_mut(|buddy| buddy.buddy_base.flags & EMPTY != 0)
 	}
+	pub fn find_invalid_or_nonfull(&mut self) -> Option<&mut Buddy1G> {
+		self.find_mut(|buddy| buddy.buddy_base.is_invalid() || buddy.buddy_base.is_non_full())
+	}
 	pub fn find_non_full(&mut self) -> Option<&mut Buddy1G> {
 		self.find_mut(|buddy| buddy.buddy_base.is_non_full())
 	}
@@ -89,12 +89,12 @@ impl BuddyList {
 impl Buddy {
 	const INVALID: Buddy = Buddy {
 		buddies: [0x0; 8],
-		flags: EMPTY,
+		flags: 0x0,
 		buddy_mask: 0x0
 	};
 	const FREE: Buddy = Buddy {
 		buddies: [u64::MAX; 8],
-		flags: FREE,
+		flags: FREE | EMPTY | (1 << 63),
 		buddy_mask: u8::MAX
 	};
 	pub fn allocate(&mut self) -> Option<u64> {
@@ -122,13 +122,21 @@ impl Buddy {
 		self.flags & (EMPTY | FREE) != 0
 	}
 	#[inline]
+	pub fn is_empty(&self) -> bool {
+		self.flags & (EMPTY) != 0
+	}
+	#[inline]
 	pub fn is_free(&self) -> bool {
 		self.flags & FREE != 0
+	}
+	#[inline]
+	pub fn is_invalid(&self) -> bool {
+		self.flags == 0x0
 	}
 }
 
 impl Buddy2M {
-	const INVALID: Buddy2M = Buddy2M(Buddy::INVALID, 0xffffffffffffffff);
+	const INVALID: Buddy2M = Buddy2M(Buddy::INVALID, u64::MAX);
 	pub fn new(addr: u64) -> Buddy2M {
 		Buddy2M(
 			Buddy::FREE,
@@ -137,6 +145,7 @@ impl Buddy2M {
 	}
 
 	pub fn allocate_4k(&mut self) -> Option<u64> {
+		self.0.flags &= !(EMPTY);
 		Some(self.1 + self.0.allocate()? * 0x1000)
 	}
 
@@ -156,12 +165,12 @@ impl Buddy2M {
 
 	#[inline]
 	pub fn is_empty(&self) -> bool {
-		self.0.flags & EMPTY != 0
+		self.0.is_empty()
 	}
 
 	#[inline]
 	pub fn is_non_full(&self) -> bool {
-		self.0.flags & (EMPTY | FREE) != 0
+		self.0.is_non_full()
 	}
 }
 
@@ -171,8 +180,9 @@ impl Buddy1G {
 		buddy_base: Buddy::INVALID
 	};
 	pub fn allocate_2m(&mut self) -> Option<u64> {
-		let idx = self.buddy_base.allocate()? as usize;
-		Some(self.children[idx].reserve())
+		Some(
+			self.children[self.position_2m_empty()?].reserve()
+		)
 	}
 	pub fn allocate_4k(&mut self) -> Option<u64> {
 		let idx = self.position_2m_non_full();
@@ -191,6 +201,9 @@ impl Buddy1G {
 	}
 	pub fn position_2m_empty(&self) -> Option<usize> {
 		self.children.iter().position(|buddy| buddy.is_empty())
+	}
+	pub fn position_2m_invalid(&self) -> Option<usize> {
+		self.children.iter().position(|buddy| buddy.phys_start() == u64::MAX)
 	}
 	pub fn position_2m_non_full(&self) -> Option<usize> {
 		self.children.iter().position(|buddy| buddy.is_non_full())
@@ -247,30 +260,28 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 	return false;
 }
 
-pub fn add_region(addr: u64, size: usize) -> Result<(), BuddyError> {
+pub fn add_region(addr: u64, size: usize) {
 	let mut buddies = BUDDIES_MUTEX.lock();
 	match size {
 		0x40000000 => buddies.add_1g_region(addr),
 		0x200000 => buddies.add_2m_region(addr),
-		_ => Err(BuddyError::UnknownSize)
+		_ => ()
 	}
 }
 
-pub fn add_regions(mut addr: u64, mut size: usize) -> Result<(), BuddyError> {
+pub fn add_regions(mut addr: u64, mut size: usize) {
 	for s in BUDDY_SIZES {
 		addr += s as u64 - (addr as usize % s) as u64;
 		while size > s {
-			add_region(addr, s)?;
+			add_region(addr, s);
 			size -= s;
 			addr += s as u64;
 		}
 	}
-	Ok(())
 }
 
-pub fn add_memory_map(memory_map: &MemoryMapOwned) -> Result<(), BuddyError> {
+pub fn add_memory_map(memory_map: &MemoryMapOwned) {
 	for entry in memory_map.entries().filter(|&d| d.ty == MemoryType::CONVENTIONAL || d.ty == MemoryType::BOOT_SERVICES_CODE) {
-		add_regions(entry.phys_start, entry.page_count as usize * uefi::boot::PAGE_SIZE)?;
+		add_regions(entry.phys_start, entry.page_count as usize * uefi::boot::PAGE_SIZE);
 	}
-	Ok(())
 }

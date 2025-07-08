@@ -57,7 +57,8 @@ impl PageTableEntry {
 	}
 	pub fn mut_dir(&mut self) -> Option<&mut PageDirectory> {
 		if !self.is_present() {
-			self.set_addr(buddy::allocate_aligned(0x1000)?, 0x1000);
+			let addr = buddy::allocate_aligned(0x1000)?;
+			self.set_addr(addr, 0x1000);
 		}
 		Some(self.addr().mapped_temporary::<PageDirectory>(0x1000))
 	}

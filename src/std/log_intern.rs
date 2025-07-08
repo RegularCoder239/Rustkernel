@@ -5,24 +5,24 @@ use core::fmt::{
 };
 use super::outb;
 
-struct PortLogger;
+struct Logger;
 
 #[macro_export]
 macro_rules! info {
 	($($args: tt)+) => {
-		crate::std::log::log(" INFO  ", format_args!($($args)+));
+		crate::std::log::log("INFO ", format_args!($($args)+));
 	};
 }
 #[macro_export]
 macro_rules! error {
 	($($args: tt)+) => {
-		crate::std::log::log(" ERROR ", format_args!($($args)+));
+		crate::std::log::log("ERROR", format_args!($($args)+));
 	};
 }
 #[macro_export]
 macro_rules! debug {
 	($($args: tt)+) => {
-		crate::std::log::log(" DEBUG ", format_args!($($args)+));
+		crate::std::log::log("DEBUG", format_args!($($args)+));
 	};
 }
 #[macro_export]
@@ -32,21 +32,27 @@ macro_rules! warn {
 	};
 }
 
-impl PortLogger {
-	fn new() -> PortLogger {
-		PortLogger {}
-	}
-}
-
-impl Write for PortLogger {
-	fn write_str(&mut self, string: &str) -> fmt::Result {
+impl Logger {
+	fn log_port(&mut self, string: &str) {
 		for byte in string.bytes() {
 			outb(byte, 0xe9);
 		}
+	}
+	fn log_console(&mut self, string: &str) {
+		if let Some(mut console) = crate::kernel::graphicmanager::console() {
+			console.print_str(string);
+		}
+	}
+}
+
+impl Write for Logger {
+	fn write_str(&mut self, string: &str) -> fmt::Result {
+		self.log_port(string);
+		self.log_console(string);
 		Ok(())
 	}
 }
 
 pub fn log(section: &str, args: Arguments) {
-	writeln!(PortLogger::new(), "[{}] {}", section, args);
+	writeln!(Logger {}, "[{}] {}", section, args);
 }

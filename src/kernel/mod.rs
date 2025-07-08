@@ -1,4 +1,5 @@
 pub mod scheduler;
+pub mod graphicmanager;
 mod boottask;
 mod exception;
 mod syscall;

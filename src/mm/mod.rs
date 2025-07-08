@@ -42,7 +42,7 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 #[inline]
 pub fn setup(memory_map: MemoryMapOwned) {
 	log::debug!("Setting up memory manager.");
-	buddy::add_memory_map(&memory_map).expect("Failed to generate memory map.");
+	buddy::add_memory_map(&memory_map);
 	let kernel_space = get_kernel_space(&memory_map).expect("No kernel found (impossible!)");
 	kerneltable::setup(kernel_space);
 

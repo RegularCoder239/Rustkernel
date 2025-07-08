@@ -35,7 +35,6 @@ impl<T, A: Allocator> Box<T, A> {
 	#[inline(always)]
 	#[must_use]
 	pub fn new(content: T) -> Self {
-
 		let mut r#box = Self::new_sized(mem::size_of::<T>());
 		*r#box = content;
 		r#box
@@ -50,13 +49,19 @@ impl<T, A: Allocator> Box<T, A> {
 
 impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn new_sized(size: usize) -> Box<T, A> {
+		let mut alloc = A::DEFAULT;
 		Box(
 			NonNull::new(
-				allocate!(ptr_with_alloc, A, T, size).unwrap()
+				alloc.allocate(size).unwrap()
 			).unwrap(),
-			A::DEFAULT,
+			alloc,
 			size
 		)
+	}
+	pub fn new_zeroed(size: usize) -> Box<T, A> {
+		let mut r#box: Box<T, A> = Box::new_sized(size);
+		r#box.as_u8_slice_mut().fill(0);
+		r#box
 	}
 	pub fn from_raw_address_sized(addr: u64, size: usize) -> Box<T, A> {
 		Self::from_raw_virt_address_sized(
@@ -91,6 +96,14 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	}
 	pub fn as_ptr<T2>(&self) -> *mut T2 {
 		self.0.as_ptr() as *mut T2
+	}
+	pub fn as_u8_slice_mut(&mut self) -> &mut [u8] {
+		unsafe {
+			core::slice::from_raw_parts_mut(
+				self.0.as_ptr() as *mut u8,
+				self.alloc_len() / mem::size_of::<u8>() - 0x150000
+			)
+		}
 	}
 }
 

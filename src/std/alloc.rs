@@ -66,8 +66,8 @@ impl PhysicalAllocator for PhysicalRAMAllocator {
 impl VirtualMapper for KernelGlobalMapper {
 	fn map<T: ?Sized>(&mut self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
 		addr.mapped_global::<T>(
-			if amount < 0x200000 && amount > 0x10000 {
-				0x200000
+			if amount % 0x1000 == 0 {
+				amount
 			} else {
 				amount + 0x1000 - (amount % 0x1000)
 			}
@@ -97,8 +97,8 @@ impl VirtualMapper for PageTableMapper<'_> {
 			address: addr[0],
 			..self.0
 		}.mapped_global::<T>(
-			if amount < 0x200000 && amount > 0x10000 {
-				0x200000
+			if amount % 0x1000 == 0 {
+				amount
 			} else {
 				amount + 0x1000 - (amount % 0x1000)
 			}

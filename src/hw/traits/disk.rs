@@ -18,7 +18,7 @@ pub trait Disk {
 pub static DISKS: Mutex<Vec<Box<dyn Disk>>> = Mutex::new(Vec::new());
 
 pub fn add_disk(disk: Box<dyn Disk>) {
-	DISKS.lock().push_back(disk)
+	DISKS.lock().push_back(disk);
 }
 
 pub fn read_lba(disk_idx: usize, lba: usize) -> Sector {
@@ -57,11 +57,11 @@ pub fn setup_disks() -> ! {
 			disk.reset();
 		}
 	}
-
+/*
 	let filecontent = FAT32::mount(MountPoint::Disk(0)).ok().unwrap().read(
 		FilePath::DOS("TEST    ELF"), 0, usize::MAX
 	).ok().unwrap();
 	std::elf::load_elf(filecontent.as_slice());
-
+*/
 	crate::std::exit()
 }

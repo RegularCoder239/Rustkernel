@@ -17,17 +17,7 @@ impl GOP {
 			).ok()?
 		};
 		let mode = gop.protocol.modes().max_by(|mode, mode2| {
-			fn pixels(mode: &ModeInfo) -> usize {
-				let (resx, resy) = mode.resolution();
-				if resx as f64 / resy as f64 == 16.0 / 9.0 {
-					resx * resy * 4
-				} else {
-					resx * resy
-				}
-			}
-			pixels(mode.info()).cmp(
-				&pixels(mode2.info())
-			)
+			pixel_amount(mode.info()).cmp(&pixel_amount(mode2.info()))
 		})?;
 		gop.protocol.set_mode(&mode).ok()?;
 		Some(gop)
@@ -37,5 +27,14 @@ impl GOP {
 	}
 	pub fn resolution(&self) -> (usize, usize) {
 		self.protocol.current_mode_info().resolution()
+	}
+}
+
+fn pixel_amount(mode: &ModeInfo) -> usize {
+	let (resx, resy) = mode.resolution();
+	if resx as f64 / resy as f64 == 16.0 / 9.0 {
+		resx * resy * 4
+	} else {
+		resx * resy
 	}
 }

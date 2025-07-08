@@ -31,7 +31,8 @@ pub use container::{
 	r#box::Box,
 	string::String,
 	unsaferef::UnsafeRef,
-	mutableref::MutableRef
+	mutableref::MutableRef,
+	mutablecell::MutableCell
 };
 
 pub use thread::{
@@ -40,6 +41,7 @@ pub use thread::{
 	mutex::OptMutexGuard,
 	lock::Lock,
 	lazymutex::LazyMutex,
+	lazymutex::LazyMutexGuard,
 	percpu::PerCpuLazy,
 	percpu::PerCpu,
 	count_cores,
