@@ -2,8 +2,7 @@ use crate::std::{
 	Vec,
 	Box,
 	Mutex,
-	log,
-	self
+	log
 };
 use core::ops::DerefMut;
 
@@ -41,14 +40,6 @@ pub fn read_lbas(disk_idx: usize, lba: usize, amount: usize) -> Box<[u8]> {
 	r#box
 }
 
-use crate::virt::fs::{
-	FAT32,
-	MountPoint,
-	FileStructure,
-	FilePath,
-	readresult_to_str
-};
-
 pub fn setup_disks() -> ! {
 	log::info!("Setting up disks.");
 	{
@@ -57,11 +48,5 @@ pub fn setup_disks() -> ! {
 			disk.reset();
 		}
 	}
-/*
-	let filecontent = FAT32::mount(MountPoint::Disk(0)).ok().unwrap().read(
-		FilePath::DOS("TEST    ELF"), 0, usize::MAX
-	).ok().unwrap();
-	std::elf::load_elf(filecontent.as_slice());
-*/
 	crate::std::exit()
 }

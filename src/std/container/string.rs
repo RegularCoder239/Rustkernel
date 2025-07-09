@@ -20,12 +20,7 @@ impl Deref for String {
 
 	fn deref(&self) -> &str {
 		core::str::from_utf8(
-			unsafe {
-				core::slice::from_raw_parts(
-					self.content.as_ptr::<u8>(),
-					self.content.alloc_len()
-				)
-			}
+			self.content.as_slice()
 		).expect("Attempt to pass nonutf-8 string.")
 	}
 }

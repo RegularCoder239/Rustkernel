@@ -10,7 +10,6 @@ use core::mem::{
 };
 use crate::std::{
 	Allocator,
-	With,
 	RAMAllocator
 };
 use core::ops::{
@@ -39,24 +38,26 @@ impl<T> LazyBox<T> {
 	}
 	pub fn get(&mut self) -> &T {
 		if self.content.is_none() {
-			self.content = Some((unsafe {
-				core::mem::transmute::<u64, fn() -> T>(self.method as u64 + crate::mm::kernel_offset())
-			})());
+			self.content = Some((self.meth())());
 		}
 		self.content.as_ref().unwrap()
 	}
 
 	pub fn get_mut(&mut self) -> &mut T {
 		if self.content.is_none() {
-			self.content = Some((unsafe {
-				core::mem::transmute::<u64, fn() -> T>(self.method as u64 + crate::mm::kernel_offset())
-			})());
+			self.content = Some((self.meth())());
 		}
 		self.content.as_mut().unwrap()
 	}
 
 	pub fn set(&mut self, content: T) {
 		self.content = Some(content);
+	}
+
+	pub fn meth(&self) -> fn() -> T {
+		unsafe {
+			core::mem::transmute::<u64, fn() -> T>(self.method as u64 + crate::mm::kernel_offset())
+		}
 	}
 
 	pub fn is_initalized(&self) -> bool {

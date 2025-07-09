@@ -6,7 +6,6 @@ use super::{
 	VecIter,
 	VecBase
 };
-use core::mem;
 
 pub struct StackVec<T, const SIZE: usize> {
 	array: [T; SIZE],

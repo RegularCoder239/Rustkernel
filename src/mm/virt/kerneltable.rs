@@ -5,9 +5,7 @@ use crate::std::{
 use super::{
 	PageDirectory,
 	PageTable,
-	PageTableEntry,
-	PAGE_SIZES,
-	current_page_table
+	PAGE_SIZES
 };
 use crate::boot;
 
@@ -88,8 +86,6 @@ pub fn setup(kernel_region: (u64, u64)) {
 	}
 
 	KERNEL_TABLE.lock().setup_mapped(kernel_region);
-
-	boot::setup_kernel_offset(KERNEL_TABLE.lock().kernel_offset);
 }
 
 pub fn setup_kernel_offset() {

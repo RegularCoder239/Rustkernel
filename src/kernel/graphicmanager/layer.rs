@@ -4,8 +4,7 @@ use crate::hw::graphics::{
 };
 use super::{
 	ColorComponent,
-	RGBColor,
-	Image
+	RGBColor
 };
 use crate::std::{
 	Box,
@@ -57,13 +56,8 @@ impl<T: ColorComponent> Layer<T> {
 		self.framebuffer[y * self.size.0 + x] = color.into();
 	}
 
-	pub fn fill(&mut self, color: RGBColor<T>) {
-		let raw_color = color.into();
-		for (idx, d) in DEPTH_BUFFER.lock().as_slice().into_iter().enumerate() {
-			if *d <= self.z {
-				self.framebuffer[idx] = raw_color;
-			}
-		}
+	pub fn fill_global(&mut self, color: RGBColor<T>) {
+		self.framebuffer.fill(color.into());
 	}
 
 	pub fn draw_rect(&mut self, pos: (usize, usize), size: (usize, usize), color: RGBColor<T>) {

@@ -1,10 +1,8 @@
 use crate::{
-	asm,
-	allocate
+	asm
 };
 use crate::std::{
 	PerCpu,
-	Box,
 	RAMAllocator,
 	Allocator
 };
@@ -134,7 +132,6 @@ impl GDT {
 		let value = self.exception_stack as u64 + 0x5000;
 		self.tss.ist_rsps[0] = value;
 		self.tss.ring_rsps[0] = value;
-		crate::std::log::info!("{:x}", value);
 		unsafe {
 			asm!("ltr ax", in("ax") 5 * 0x8);
 		}
@@ -162,10 +159,6 @@ impl GDT {
 				 in(reg) Self::DATA_SEG,
 			);
 		}
-	}
-
-	fn set_stack(&mut self, ptr: *mut u8, stack_size: u64) {
-
 	}
 }
 

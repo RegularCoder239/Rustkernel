@@ -4,11 +4,12 @@ use core::ops::{
 };
 use crate::std::{
 	LazyMutex,
-	Box
+	Box,
+	rdmsr
 };
 use crate::{
 	std,
-	lapic
+	lapic,
 };
 
 struct LAPICRegister {
@@ -47,7 +48,7 @@ pub struct IOAPIC {
 }
 
 pub static LAPICS: LazyMutex<Box<LAPIC>> = LazyMutex::new(
-	|| Box::from_raw_address(0xfee00000)
+	|| Box::from_raw_address(rdmsr(0x1b) & !(0xfff))
 );
 pub static IOAPIC: LazyMutex<Box<IOAPIC>> = LazyMutex::new(
 	|| Box::from_raw_address(0xfec00000)
@@ -65,6 +66,9 @@ impl LAPIC {
 	}
 	pub fn end_of_interrupt() {
 		*lapic!().eoi = 0x0;
+	}
+	pub fn id(&self) -> u32 {
+		*self.id
 	}
 	pub fn enable_hardware_interrupts() {
 		std::outb(0xff, 0x21);

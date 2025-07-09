@@ -1,58 +1,50 @@
-use core::{
-	arch::asm
-};
-use super::{
-	Allocator
-};
+use core::arch::asm;
 
-pub trait With<T> {
-	fn with(self, content: T) -> Self;
-}
-
-impl<T> With<T> for *mut T {
-	fn with(self, content: T) -> Self {
-		unsafe { *self = content; }
-		self
+#[macro_export]
+macro_rules! assume_safe_asm {
+	($code: expr) => {
+		unsafe {
+			core::arch::asm!($code);
+		}
+	};
+	($code: expr, in, $($inputs:expr), +) => {
+		unsafe {
+			core::arch::asm!($code, $(in(reg) $inputs)+);
+		}
 	}
 }
 
 #[inline]
 pub fn hltloop() -> ! {
 	loop {
-		unsafe {
-			asm!("hlt");
-		}
+		assume_safe_asm!("hlt");
 	}
 }
 
 #[inline]
 pub fn cli() {
-	unsafe {
-		asm!("cli");
-	}
+	assume_safe_asm!("cli");
 }
 
 #[inline]
 pub fn sti() {
-	unsafe {
-		asm!("cli");
-	}
+	assume_safe_asm!("sti");
 }
 
 #[inline]
 pub fn cr2() -> u64 {
+	let cr2;
 	unsafe {
-		let cr2;
 		asm!("mov {0}, cr2",
 			 out(reg) cr2);
-		cr2
 	}
+	cr2
 }
 
 #[inline]
 pub fn reset_cr2() {
 	unsafe {
-		asm!("mov cr2, {0}",
+		asm!("mov cr2, {0:r}",
 			 in(reg) 0x0);
 	}
 }
@@ -80,23 +72,24 @@ pub fn rdmsr(msr: u32) -> u64 {
 macro_rules! call_asm {
 	($meth: expr, $arg1: expr) => {
 		unsafe {
-			core::arch::asm!("mov r8, {0}",
-							"add r8, {1}",
-							"call r8",
-							in(reg) $meth,
-							in(reg) crate::mm::kerneltable::kernel_offset(),
-							in("rdi") $arg1)
+			asm!("mov r8, {0}",
+				"add r8, {1}",
+				"call r8",
+				in(reg) $meth,
+				in(reg) crate::mm::kerneltable::kernel_offset(),
+				in("rdi") $arg1)
 		}
+
 	};
 	($meth: expr, $arg1: expr, $arg2: expr) => {
 		unsafe {
-			core::arch::asm!("mov r8, {0}",
-							"add r8, {1}",
-							"call r8",
-							in(reg) $meth,
-							in(reg) crate::mm::kerneltable::kernel_offset(),
-							in("rdi") $arg1,
-							in("rsi") $arg2)
+			asm!("mov r8, {0}",
+				 "add r8, {1}",
+				 "call r8",
+				 in(reg) $meth,
+				 in(reg) crate::mm::kerneltable::kernel_offset(),
+				 in("rdi") $arg1,
+				 in("rsi") $arg2)
 		}
 	}
 }

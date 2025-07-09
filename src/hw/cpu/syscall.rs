@@ -1,13 +1,10 @@
 use crate::std::{
 	Mutex,
 	Vec,
-	PerCpuLazy,
-	Box,
 	wrmsr
 };
 use core::arch::{
-	naked_asm,
-	asm
+	naked_asm
 };
 
 pub struct Function {
@@ -16,7 +13,6 @@ pub struct Function {
 }
 
 static FUNCIONALITIES: Mutex<Vec<Function>> = Mutex::new(Vec::new());
-//static SYSCALL_STACKS: PerCpuLazy<[u8; 0x2000]> = PerCpuLazy::new([0; 0x2000]);
 
 impl Function {
 	pub fn add(self) {

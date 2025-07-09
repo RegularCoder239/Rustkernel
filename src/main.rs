@@ -1,12 +1,9 @@
 #![feature(abi_x86_interrupt)]
-#![feature(naked_functions_rustic_abi)]
 #![feature(coerce_unsized)]
-#![feature(ptr_internals)]
 #![feature(ptr_metadata)]
 #![feature(unsize)]
 
 #![allow(dead_code)]
-#![allow(internal_features)]
 
 #![no_main]
 #![no_std]
@@ -33,10 +30,6 @@ use std::Mutex;
 use crate::kernel::scheduler::{
 	Process
 };
-use crate::virt::fs::{
-	FilePath,
-	FileStructure
-};
 use std::log;
 use core::arch::x86_64::__cpuid;
 
@@ -57,15 +50,15 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 
 #[entry]
 fn main() -> Status {
-
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");
-
-
 
 	let (uefi_result, memory_map) = boot::boot_sequence().expect("No memory map given.");
 	unsafe {
 		let cpuid_features = __cpuid(0x1);
+		if cpuid_features.edx & 0x2000269 != 0x2000269 {
+			panic!("Requires a CPU with the features: FPU, PSE, MSR, PAE, APIC and SSE.");
+		}
 		let cpuid_features_extended = __cpuid(0x7);
 		if cpuid_features_extended.ebx & 0x1 != 0x1 {
 			panic!("Requires a CPU with the wrgsbase instruction.");
@@ -78,7 +71,9 @@ fn main() -> Status {
 						 "lidt [{0}]",
 						 "mov rax, 0x10676",
 						 "mov cr4, rax",
-						 in(reg) idtr.as_ptr())
+						 "wrgsbase {1:r}",
+						 in(reg) idtr.as_ptr(),
+						 in(reg) 0);
 	}
 	*UEFI_RESULT.lock() = Some(uefi_result);
 	mm::setup(memory_map);

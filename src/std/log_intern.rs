@@ -54,5 +54,5 @@ impl Write for Logger {
 }
 
 pub fn log(section: &str, args: Arguments) {
-	writeln!(Logger {}, "[{}] {}", section, args);
+	let _ = writeln!(Logger {}, "[{}] {}", section, args);
 }

@@ -11,6 +11,7 @@ use super::{
 	lapic
 };
 use core::ops::Deref;
+use crate::assume_safe_asm;
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
@@ -200,9 +201,7 @@ impl IDT {
 			limit: 0x1000,
 			base: self as *const IDT as u64 + crate::mm::kernel_offset()
 		};
-		unsafe {
-			asm!("lidt [{}]", in(reg) &idtr);
-		}
+		assume_safe_asm!("lidt [{}]", in, &idtr);
 	}
 	fn setup_exception_handlers(&mut self) {
 		for idx in 0..31 {
@@ -240,9 +239,7 @@ pub fn connect_exception(meth: ExceptionMethod) {
 }
 
 pub fn handle_interrupt(vector: u8) {
-	let methods = unsafe {
-		&INTERRUPT_CONNECTION_METHS.get_static()[vector as usize]
-	};
+	let methods = &INTERRUPT_CONNECTION_METHS.lock()[vector as usize];
 	for method in methods.into_iter() {
 		method(vector);
 	}

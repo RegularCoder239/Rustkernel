@@ -5,14 +5,18 @@ pub mod lazymutex;
 
 use core::arch::x86_64::__cpuid;
 
-pub fn current_core() -> u32 {
+pub fn current_core_uncached() -> u32 {
 	unsafe {
 		__cpuid(0x1).ebx >> 24
 	}
 }
 
-pub fn cpucore() -> u32 {
-	current_core()
+pub fn current_core() -> u64 {
+	if let Some(idx) = crate::hw::cpu::gs::current_core() {
+		idx
+	} else {
+		current_core_uncached() as u64
+	}
 }
 
 pub fn count_cores() -> usize {

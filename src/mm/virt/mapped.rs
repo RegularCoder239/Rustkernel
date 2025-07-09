@@ -1,6 +1,5 @@
 use crate::{
-	current_page_table,
-	stack_vec
+	current_page_table
 };
 use crate::std::{
 	StackVec,
@@ -60,8 +59,8 @@ pub enum MappingFlags {
 	Executable = 1 << 63
 }
 
-pub struct MappingInfo<'mapping_info> {
-	pub page_table: MutableRef<'mapping_info, PageTable>,
+pub struct MappingInfo {
+	pub page_table: MutableRef<PageTable>,
 	pub address: u64,
 	pub flags: MappingFlags
 }
@@ -82,9 +81,7 @@ impl Mapped for StackVec<u64, 0x200> {
 
 impl Mapped for u64 {
 	fn mapped_temporary<T>(&self, amount: usize) -> &'static mut T {
-		unsafe {
-			&mut *(current_page_table().mapped_temporary(*self, amount) as *mut T)
-		}
+		current_page_table().mapped_temporary(*self, amount)
 	}
 
 	fn mapped_at<T: ?Sized>(&self, addr_space: u64, amount: usize) -> Option<*mut T> {
@@ -109,8 +106,8 @@ impl<T2> Mapped for *const T2 {
 	}
 }
 
-impl Mapped for MappingInfo<'_> {
-	fn mapped_temporary<T>(&self, amount: usize) -> &'static mut T {
+impl Mapped for MappingInfo {
+	fn mapped_temporary<T>(&self, _: usize) -> &'static mut T {
 		todo!()
 	}
 

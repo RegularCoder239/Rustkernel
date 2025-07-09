@@ -2,10 +2,8 @@ use crate::{
 	uefi_result,
 };
 use crate::std::{
-	self,
 	LazyMutex,
-	Box,
-	log
+	Box
 };
 
 static FRAMEBUFFER_RESOLUTION: LazyMutex<Option<(usize, usize)>> = LazyMutex::new(
@@ -29,9 +27,7 @@ static FRAMEBUFFER_POINTER: LazyMutex<Option<Box<[u32]>>> = LazyMutex::new(
 
 pub fn framebuffer() -> Option<&'static mut [u32]> {
 	Some(
-		unsafe {
-			FRAMEBUFFER_POINTER.get_static()
-		}.as_mut()?.as_slice_mut()
+		FRAMEBUFFER_POINTER.get().as_mut()?.as_slice_mut()
 	)
 }
 

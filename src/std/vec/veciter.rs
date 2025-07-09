@@ -7,15 +7,16 @@ use core::{
 use super::{
 	vec::VecBase
 };
+use crate::std::MutableRef;
 
 pub struct VecIter<'vec, T, V> {
 	vec: &'vec V,
 	phantom: PhantomData<&'vec T>,
 	idx: usize
 }
-pub struct VecIterMut<'vec, T, V> {
-	vec: V,
-	phantom: PhantomData<&'vec mut T>,
+pub struct VecIterMut<'iter, T, V> {
+	vec: &'iter mut V,
+	phantom: PhantomData<&'iter mut T>,
 	idx: usize
 }
 pub struct VecIterNonRef<T, V> {
@@ -54,8 +55,8 @@ impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + 'vec> core::iter::Exact
 	}
 }
 
-impl<'vec, T, V: Index<usize> + IndexMut<usize>> VecIterMut<'vec, T, V> {
-	pub fn new(vec: V) -> VecIterMut<'vec, T, V> {
+impl<'vec, T, V: Index<usize>> VecIterMut<'vec, T, V> {
+	pub fn new(vec: &'vec mut V) -> VecIterMut<'vec, T, V> {
 		VecIterMut {
 			vec: vec,
 			phantom: PhantomData,
@@ -73,11 +74,9 @@ impl<'vec, T, V: VecBase<T> + Index<usize, Output = T> + IndexMut<usize> + 'vec>
 			None
 		} else {
 			self.idx += 1;
-			Some(
-				unsafe {
-					&mut *(self.vec.index_ptr_mut(self.idx - 1))
-				}
-			)
+			Some(unsafe {
+				self.vec.index_ptr_mut(self.idx - 1).as_mut().unwrap()
+			})
 		}
 	}
 }

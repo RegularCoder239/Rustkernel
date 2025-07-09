@@ -18,7 +18,10 @@ use crate::std::{
 use crate::hw::{
 	cpu
 };
-use core::ops::IndexMut;
+use core::{
+	arch::asm,
+	ops::IndexMut
+};
 use cpu::GDT;
 
 #[derive(PartialEq)]
@@ -196,8 +199,8 @@ impl Process {
 	pub fn from_pid(pid: u64) -> Option<&'static mut Process> {
 		Some(
 			unsafe {
-				PROCESSES.get_static().index_mut(
-					PROCESSES.get_static().into_iter().position(|p| p.pid == pid)?
+				PROCESSES.get().index_mut(
+					PROCESSES.get().into_iter().position(|p| p.pid == pid)?
 				)
 			}
 		)
@@ -272,7 +275,7 @@ pub fn r#yield() {
 
 	if let Some(unwarped_process_idx) = idx {
 		unsafe {
-			PROCESSES.get_static().index_mut(unwarped_process_idx).switch();
+			PROCESSES.get().index_mut(unwarped_process_idx).switch();
 		}
 	} else {
 		sti();

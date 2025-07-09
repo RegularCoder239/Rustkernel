@@ -16,6 +16,7 @@ use core::{
 	iter::*
 };
 use crate::mm::align_size;
+use crate::assume_safe_asm;
 
 #[derive(Copy, Clone)]
 pub struct PageTable {
@@ -75,17 +76,12 @@ impl PageTable {
 		self.initalized = true;
 	}
 	pub fn load(&mut self) -> &mut PageTable {
-		let cr3 = self.as_cr3();
-		unsafe {
-			asm!("mov cr3, {}", in(reg) cr3);
-		}
+		assume_safe_asm!("mov cr3, {}", in, self.as_cr3());
 		self
 	}
 	pub fn flush() {
-		unsafe {
-			asm!("mov rax, cr3",
-				 "mov cr3, rax");
-		}
+		assume_safe_asm!("mov rax, cr3\n
+						  mov cr3, rax");
 	}
 	pub fn is_free(&self, virt_addr: u64, size: usize) -> bool {
 		for s in virt_addr_iterator(virt_addr, size) {
@@ -188,15 +184,17 @@ impl PageTable {
 		Ok(first_free_address)
 	}
 
-	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize, flags: u64) -> Result<u64, PagingError> {
+	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize, flags: u64) -> bool {
 		for offset in virt_addr_iterator(phys_addr, amount) {
-			self.map_page(virt_addr + offset,
+			if !self.map_page(virt_addr + offset,
 						  phys_addr + offset,
 						  align_size(amount),
-						  flags);
+						  flags) {
+				return false;
+			}
 		}
 		PageTable::flush();
-		Ok(virt_addr)
+		true
 	}
 	pub fn unmap(&mut self, virt_addr: u64, amount: usize) -> bool {
 		for offset in virt_addr_iterator(virt_addr, amount) {
@@ -207,13 +205,15 @@ impl PageTable {
 		PageTable::flush();
 		true
 	}
-	pub unsafe fn mapped_temporary(&mut self, phys_addr: u64, size: usize) -> u64 {
+	pub fn mapped_temporary<T>(&mut self, phys_addr: u64, size: usize) -> &mut T {
 		if size != 0x1000 {
 			todo!("Temporary mapping support for other sizes than 4k.");
 		}
 		self.temporary_directories[2 - (size_as_page_level(size)) as usize][1].set_addr(phys_addr, size);
 		PageTable::flush();
-		TEMPORARY_ADDRESS_SPACE + size as u64
+		unsafe {
+			((TEMPORARY_ADDRESS_SPACE + size as u64) as *mut T).as_mut().unwrap()
+		}
 	}
 }
 

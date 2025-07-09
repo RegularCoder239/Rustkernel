@@ -2,15 +2,10 @@ use crate::mm::{
 	buddy,
 	Mapped,
 	Address,
-	PageTable,
 	MappingInfo,
 	MappingFlags
 };
 use crate::current_page_table;
-use core::ops::{
-	Deref,
-	DerefMut
-};
 use core::marker::PhantomData;
 use super::{
 	StackVec,
@@ -22,12 +17,12 @@ pub trait PhysicalAllocator {
 	const DEFAULT: Self;
 
 	fn allocate_phys(amount: usize) -> Option<StackVec<u64, 0x200>> where Self: Sized;
-	unsafe fn free_phys(ptr: u64, amount: usize) where Self: Sized;
+	fn free_phys(ptr: u64, amount: usize) where Self: Sized;
 }
 
 pub trait VirtualMapper: Default {
-	fn map<T: ?Sized>(&mut self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T>;
-	unsafe fn unmap(&mut self, addr: u64, amount: usize);
+	fn map<T: ?Sized>(&self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T>;
+	fn unmap(&self, addr: u64, amount: usize);
 }
 
 pub trait Allocator {
@@ -36,8 +31,8 @@ pub trait Allocator {
 	type VirtualMapper: VirtualMapper;
 	type PhysicalAllocator: PhysicalAllocator;
 
-	fn allocate<T: ?Sized>(&mut self, amount: usize) -> Option<*mut T> where Self: Sized;
-	unsafe fn free(&mut self, ptr: *const u8, amount: usize) where Self: Sized;
+	fn allocate<T: ?Sized>(&self, amount: usize) -> Option<*mut T> where Self: Sized;
+	fn free(&self, ptr: *const u8, amount: usize) where Self: Sized;
 }
 
 
@@ -45,7 +40,7 @@ pub struct RAMAlignedAllocator;
 pub struct PhysicalRAMAllocator;
 #[derive(Default)]
 pub struct KernelGlobalMapper;
-pub struct PageTableMapper<'mapper>(MappingInfo<'mapper>);
+pub struct PageTableMapper(MappingInfo);
 pub struct BasicAllocator<V: VirtualMapper, P: PhysicalAllocator> {
 	mapper: V,
 	phantom: PhantomData<P>
@@ -58,13 +53,13 @@ impl PhysicalAllocator for PhysicalRAMAllocator {
 	fn allocate_phys(amount: usize) -> Option<StackVec<u64, 0x200>> {
 		buddy::allocate(amount)
 	}
-	unsafe fn free_phys(addr: u64, amount: usize) {
+	fn free_phys(addr: u64, amount: usize) {
 		buddy::free(addr, amount);
 	}
 }
 
 impl VirtualMapper for KernelGlobalMapper {
-	fn map<T: ?Sized>(&mut self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
+	fn map<T: ?Sized>(&self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
 		addr.mapped_global::<T>(
 			if amount % 0x1000 == 0 {
 				amount
@@ -73,25 +68,25 @@ impl VirtualMapper for KernelGlobalMapper {
 			}
 		)
 	}
-	unsafe fn unmap(&mut self, addr: u64, amount: usize) {
+	fn unmap(&self, addr: u64, amount: usize) {
 		addr.unmap(amount);
 	}
 }
 
-impl Default for PageTableMapper<'_> {
+impl Default for PageTableMapper {
 	fn default() -> Self {
 		PageTableMapper(
 			MappingInfo {
 				address: 0,
 				flags: MappingFlags::None,
-				page_table: MutableRef(current_page_table())
+				page_table: MutableRef::from_ptr(current_page_table())
 			}
 		)
 	}
 }
 
-impl VirtualMapper for PageTableMapper<'_> {
-	fn map<T: ?Sized>(&mut self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
+impl VirtualMapper for PageTableMapper {
+	fn map<T: ?Sized>(&self, addr: StackVec<u64, 0x200>, amount: usize) -> Option<*mut T> {
 		assert!(addr.len() != 1, "Unsupported addr size.");
 		MappingInfo {
 			address: addr[0],
@@ -104,7 +99,7 @@ impl VirtualMapper for PageTableMapper<'_> {
 			}
 		)
 	}
-	unsafe fn unmap(&mut self, addr: u64, amount: usize) {
+	fn unmap(&self, addr: u64, amount: usize) {
 		addr.unmap(amount);
 	}
 }
@@ -117,14 +112,14 @@ impl Allocator for RAMAllocator {
 	type VirtualMapper = KernelGlobalMapper;
 	type PhysicalAllocator = PhysicalRAMAllocator;
 
-	fn allocate<T: ?Sized>(&mut self, amount: usize) -> Option<*mut T> where Self: Sized {
+	fn allocate<T: ?Sized>(&self, amount: usize) -> Option<*mut T> where Self: Sized {
 		self.mapper.map(
 			PhysicalRAMAllocator::allocate_phys(amount)?,
 			amount
 		)
 	}
 
-	unsafe fn free(&mut self, ptr: *const u8, size: usize) where Self: Sized {
+	fn free(&self, ptr: *const u8, size: usize) where Self: Sized {
 		PhysicalRAMAllocator::free_phys(ptr.physical_address(), size);
 		self.mapper.unmap(ptr.addr() as u64, size);
 	}

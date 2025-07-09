@@ -4,8 +4,7 @@ mod font;
 mod image;
 
 pub use consolelayer::{
-	console,
-	ConsoleLayer
+	console
 };
 pub use image::Image;
 pub use layer::Layer;

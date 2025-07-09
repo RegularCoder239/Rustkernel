@@ -37,7 +37,7 @@ impl ConsoleLayer {
 	}
 
 	pub fn setup(&mut self) {
-		self.layer.fill(self.background_color);
+		self.layer.fill_global(self.background_color);
 		self.redraw_cursor();
 	}
 

@@ -19,7 +19,6 @@ use acpi::{
 	madt::Madt,
 	madt::MadtEntry
 };
-use core::ops::Deref;
 
 pub struct ACPI {
 	table: AcpiTables<AcpiMemoryHandler>,
@@ -51,7 +50,7 @@ impl ACPI {
 	pub fn madt_core_amount(&self) -> Option<usize> {
 		Some(
 			self.madt_mapping.as_ref()?.get().entries()
-				.map(|entry| if let MadtEntry::LocalApic(e) = entry {
+				.map(|entry| if let MadtEntry::LocalApic(_) = entry {
 					1
 				} else {
 					0

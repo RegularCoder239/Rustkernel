@@ -1,18 +1,10 @@
 mod display;
-mod color;
 
 pub use display::{
 	framebuffer,
 	resolution
 };
 
-use color::{
-	Color
-};
-use crate::std::{
-	exit,
-	log
-};
 use crate::uefi_result;
 
 pub fn available() -> bool {

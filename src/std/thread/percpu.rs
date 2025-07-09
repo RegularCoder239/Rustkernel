@@ -2,8 +2,10 @@ use core::{
 	cell::UnsafeCell,
 	slice::Iter
 };
-use super::cpucore;
-use super::super::LazyBox;
+use crate::std::{
+	current_core,
+	LazyBox
+};
 
 pub struct PerCpu<T> {
 	content: UnsafeCell<[T; 32]>
@@ -26,16 +28,16 @@ impl<T> PerCpu<T> {
 		}
 	}
 	pub fn deref(&self) -> &T {
-		self.unwrap().each_ref()[cpucore() as usize]
+		self.unwrap().each_ref()[current_core() as usize]
 	}
 	pub fn deref_mut(&self) -> &mut T {
-		self.unwrap().each_mut()[cpucore() as usize]
+		self.unwrap().each_mut()[current_core() as usize]
 	}
 	pub fn iter(&self) -> Iter<'_, T> {
 		self.unwrap().iter()
 	}
 	pub fn set(&self, content: T) {
-		self.unwrap()[cpucore() as usize] = content;
+		self.unwrap()[current_core() as usize] = content;
 	}
 }
 

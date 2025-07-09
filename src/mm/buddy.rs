@@ -196,7 +196,7 @@ impl Buddy1G {
 			false
 		}
 	}
-	pub fn free_4k(&mut self, addr: u64) -> bool {
+	pub fn free_4k(&mut self, _: u64) -> bool {
 		true
 	}
 	pub fn position_2m_empty(&self) -> Option<usize> {
@@ -248,7 +248,7 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 
 	let mut list = BUDDIES_MUTEX.lock();
 	for _1g_buddy in &mut list.content {
-		if match(size) {
+		if match size {
 			0x1000 => _1g_buddy.free_4k(addr),
 			0x200000 => _1g_buddy.free_2m(addr),
 			_ => panic!("Internal bug.")

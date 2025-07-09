@@ -4,11 +4,10 @@ use crate::{
 	std::log
 };
 use super::{
-	current_process,
-	current_task_state
+	current_process
 };
 
-#[derive(Debug)]
+#[derive(Debug, enum_iterator::Sequence)]
 enum Error {
 	DivisionByZero,
 	Debug,
@@ -39,13 +38,14 @@ enum Error {
 }
 
 pub fn handle_exception(vector: u8, frame: cpu::InterruptFrame, error: u64) {
-	let current_state = current_task_state();
 	let process = current_process().expect("Fatal exception in boot task.");
 	log::error!("Crash! PID:        {}", process.pid);
 	log::error!("       RIP:        0x{:x}", frame.rip);
 	log::error!("       RFLAGS:     0x{:x}", frame.rflags);
 	log::error!("       CR2:        0x{:x}", std::cr2());
-	log::error!("       Error       {:?}", unsafe { core::mem::transmute::<_, Error>(vector) });
+	log::error!("       Error       {:?}",
+		enum_iterator::all::<Error>().nth(vector as usize).expect("Unknown error.")
+	);
 	log::error!("       Error Code: 0x{:x}", error);
 	log::error!("       Flags:      {:?}", process.r#type);
 	std::reset_cr2();
@@ -53,7 +53,5 @@ pub fn handle_exception(vector: u8, frame: cpu::InterruptFrame, error: u64) {
 }
 
 pub fn setup_exception_handlers() {
-	for vec in 0..31 {
-		cpu::connect_exception(handle_exception);
-	}
+	cpu::connect_exception(handle_exception);
 }

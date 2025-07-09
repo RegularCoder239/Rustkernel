@@ -1,5 +1,4 @@
 use core::{
-	marker::PhantomData,
 	marker::Unsize,
 
 	ops::Deref,
@@ -14,7 +13,6 @@ use core::{
 	mem
 };
 use crate::{
-	allocate,
 	stack_vec,
 
 	mm::Address
@@ -49,12 +47,11 @@ impl<T, A: Allocator> Box<T, A> {
 
 impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn new_sized(size: usize) -> Box<T, A> {
-		let mut alloc = A::DEFAULT;
 		Box(
 			NonNull::new(
-				alloc.allocate(size).unwrap()
+				A::DEFAULT.allocate(size).unwrap()
 			).unwrap(),
-			alloc,
+			A::DEFAULT,
 			size
 		)
 	}
@@ -105,6 +102,11 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 			)
 		}
 	}
+	pub fn as_stack(&self) -> *mut u8 {
+		unsafe {
+			(self.0.as_ptr() as *mut u8).byte_add(self.alloc_len())
+		}
+	}
 }
 
 impl<T: Copy, A: Allocator> Box<[T], A> {
@@ -127,7 +129,7 @@ impl<T, A: Allocator> Box<[T], A> {
 			)
 		}
 	}
-	pub fn as_slice_mut(&self) -> &mut [T] {
+	pub fn as_slice_mut(&mut self) -> &mut [T] {
 		unsafe {
 			core::slice::from_raw_parts_mut(
 				self.0.as_ptr() as *mut T,
@@ -140,17 +142,13 @@ impl<T, A: Allocator> Box<[T], A> {
 impl<T: Copy, A: Allocator> Index<usize> for Box<[T], A> {
 	type Output = T;
 	fn index(&self, idx: usize) -> &T {
-		unsafe {
-			&*(self.0.as_ptr().byte_add(idx * mem::size_of::<T>()) as *const T)
-		}
+		&self.as_slice()[idx]
 	}
 }
 
 impl<T: Copy, A: Allocator> IndexMut<usize> for Box<[T], A> {
 	fn index_mut(&mut self, idx: usize) -> &mut T {
-		unsafe {
-			&mut *(self.0.as_ptr().byte_add(idx * mem::size_of::<T>()) as *mut T)
-		}
+		&mut self.as_slice_mut()[idx]
 	}
 }
 
@@ -174,13 +172,11 @@ impl<T: ?Sized, A: Allocator> DerefMut for Box<T, A> {
 
 impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
 	fn drop(&mut self) {
-		unsafe {
-			let ptr = self.0.as_ptr() as *const u8;
-			if ptr as u64 == 0 {
-				return;
-			}
-			self.1.free(ptr, self.alloc_len())
+		let ptr = self.0.as_ptr() as *const u8;
+		if ptr as u64 == 0 {
+			return;
 		}
+		self.1.free(ptr, self.alloc_len())
 	}
 }
 

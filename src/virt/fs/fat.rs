@@ -4,16 +4,11 @@ use crate::{
 	hw::read_lbas,
 	std::Box
 };
-use core::{
-	ops::Index
-};
-use crate::std::ReverseBytes;
 use super::{
 	FileStructure,
 	MountPoint,
 	FilePath,
-	FSError,
-	readresult_to_str
+	FSError
 };
 
 pub struct FAT32 {

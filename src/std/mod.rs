@@ -37,7 +37,6 @@ pub use container::{
 
 pub use thread::{
 	mutex::Mutex,
-	mutex::MutexGuard,
 	mutex::OptMutexGuard,
 	lock::Lock,
 	lazymutex::LazyMutex,
@@ -45,14 +44,14 @@ pub use thread::{
 	percpu::PerCpuLazy,
 	percpu::PerCpu,
 	count_cores,
-	current_core
+	current_core,
+	current_core_uncached
 };
 pub use alloc::{
 	Allocator,
 	RAMAllocator
 };
 pub use utils::{
-	With,
 	hltloop,
 	cli,
 	sti,

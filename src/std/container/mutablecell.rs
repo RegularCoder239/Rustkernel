@@ -1,6 +1,5 @@
 use core::ops::{
-	Deref,
-	DerefMut
+	Deref
 };
 
 #[derive(Copy, Clone)]

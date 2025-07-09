@@ -122,7 +122,7 @@ impl<T, A: Allocator> Vec<T, A> {
 	}
 	pub fn sort(&mut self, meth: fn(&T, &T) -> bool) {
 		let mut repeat = true;
-		while (repeat) {
+		while repeat {
 			repeat = false;
 			for idx in 0..self.len() - 1 {
 				if meth(&self[idx], &self[idx+1]) {
@@ -245,7 +245,7 @@ impl<T, A: Allocator> IndexMut<usize> for Vec<T, A> {
 	}
 }
 impl<T, A: Allocator> IndexMut<usize> for &mut Vec<T, A> {
-	fn index_mut<'vec>(&'vec mut self, index: usize) -> &'vec mut T {
+	fn index_mut(&mut self, index: usize) -> &mut T {
 		let (chunk, remainder) = self.index_chunk_mut(index);
 		chunk.index_mut(remainder)
 	}
@@ -271,7 +271,7 @@ impl<'vec, T: 'vec, A: Allocator> IntoIterator for &'vec Vec<T, A> {
 
 impl<'vec, T: 'vec, A: Allocator> IntoIterator for &'vec mut Vec<T, A> {
 	type Item = &'vec mut T;
-	type IntoIter = VecIterMut<'vec, T, &'vec mut Vec<T, A>>;
+	type IntoIter = VecIterMut<'vec, T, Vec<T, A>>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter::new(self)

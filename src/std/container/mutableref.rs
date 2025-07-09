@@ -1,34 +1,29 @@
 use core::ops::{
-	Deref,
-	DerefMut
+	Deref
 };
 
 #[derive(Copy, Clone)]
-pub struct MutableRef<'life, T>(pub &'life T);
+pub struct MutableRef<T>(*const T);
 
-impl<T> MutableRef<'_, T> {
-	pub fn from_ref<'life>(content: &'life T) -> MutableRef<'life, T> {
-		MutableRef(content)
+impl<T> MutableRef<T> {
+	pub const fn from_ref(content: &T) -> MutableRef<T> {
+		MutableRef(content as *const T)
 	}
-	pub unsafe fn from_ptr<'life>(content: *const T) -> MutableRef<'life, T> {
-		MutableRef(
-			unsafe {
-				&*content
-			}
-		)
+	pub const fn from_ptr(content: *const T) -> MutableRef<T> {
+		MutableRef(content)
 	}
 
 	#[allow(invalid_reference_casting)]
 	pub fn deref_mut<'life>(&'life self) -> &'life mut T {
 		unsafe {
-			&mut *(self.0 as *const T as *mut T)
+			&mut *(self.0 as *mut T)
 		}
 	}
 }
 
-impl<'life, T> Deref for MutableRef<'life, T> {
+impl<T> Deref for MutableRef<T> {
 	type Target = T;
-	fn deref(&self) -> &'life T {
-		self.0
+	fn deref(&self) -> &T {
+		self.deref_mut()
 	}
 }
