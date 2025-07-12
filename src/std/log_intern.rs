@@ -4,6 +4,7 @@ use core::fmt::{
 	self
 };
 use super::outb;
+use crate::print;
 
 struct Logger;
 
@@ -39,17 +40,14 @@ impl Logger {
 		}
 	}
 	fn log_console(&mut self, string: &str) {
-		if let Some(mut console) = crate::kernel::graphicmanager::console() {
-			console.print_str(string);
-		}
+
 	}
 }
 
 impl Write for Logger {
 	fn write_str(&mut self, string: &str) -> fmt::Result {
 		self.log_port(string);
-		self.log_console(string);
-		Ok(())
+		print!("{}", string)
 	}
 }
 

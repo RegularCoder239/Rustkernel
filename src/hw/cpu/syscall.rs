@@ -9,7 +9,7 @@ use core::arch::{
 
 pub struct Function {
 	pub id: u64,
-	pub meth: fn()
+	pub meth: fn(&[u64])
 }
 
 static FUNCIONALITIES: Mutex<Vec<Function>> = Mutex::new(Vec::new());
@@ -30,10 +30,11 @@ pub fn setup() {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn do_syscall(function: u64) {
+extern "C" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) {
+	crate::std::log::info!("Arg1: {:x} {:x} {:x} {:x}", arg1, arg2, arg3, arg4);
 	let lock = FUNCIONALITIES.lock();
 	if let Some(f) = lock.into_iter().find(|a| a.id == function) {
-		(f.meth)();
+		(f.meth)(&[arg1, arg2, arg3, arg4]);
 	} else {
 		crate::std::log::error!("Invalid syscall opcode: {:x}", function);
 	}
@@ -45,6 +46,7 @@ pub unsafe extern "sysv64" fn __do_syscall() {
 			   "xchg rsp, qword ptr gs:0x0",
 			   "push rcx",
 			   "push r11",
+			   "fwait",
 			   "mov rcx, rax",
 			   "call do_syscall",
 			   "pop r11",

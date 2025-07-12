@@ -57,6 +57,6 @@ impl ColorComponent for u8 {
 
 pub fn setup_console_task() -> ! {
 	consolelayer::init_console();
-	crate::std::log::info!("Test123");
+
 	crate::std::exit();
 }

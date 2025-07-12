@@ -6,6 +6,7 @@ mod container;
 mod vec;
 mod reversebytes;
 mod log_intern;
+mod console;
 
 pub mod elf;
 pub mod log {
@@ -19,7 +20,7 @@ pub mod log {
 		log
 	};
 }
-
+pub use console::Console;
 pub use vec::{
 	Vec,
 	StackVec,
@@ -38,6 +39,7 @@ pub use container::{
 pub use thread::{
 	mutex::Mutex,
 	mutex::OptMutexGuard,
+	mutex::MutexGuard,
 	lock::Lock,
 	lazymutex::LazyMutex,
 	lazymutex::LazyMutexGuard,

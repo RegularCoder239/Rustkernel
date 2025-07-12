@@ -277,3 +277,5 @@ impl<'vec, T: 'vec, A: Allocator> IntoIterator for &'vec mut Vec<T, A> {
 		Self::IntoIter::new(self)
 	}
 }
+
+unsafe impl<T: Sync, A: Allocator> Sync for Vec<T, A> {}
