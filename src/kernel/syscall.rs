@@ -5,15 +5,15 @@ use core::fmt::Write;
 const SYSCALL_METHODS: [Function; 4] = [
 	Function {
 		id: 0xa4998996a6277317,
-		meth: |args| crate::std::exit()
+		meth: |_| crate::std::exit()
 	},
 	Function {
 		id: 0x4a33e7eb45595ceb,
-		meth: |args| crate::hw::power::shutdown()
+		meth: |_| crate::hw::power::shutdown()
 	},
 	Function {
 		id: 0xba3f7ec4fdf5556b,
-		meth: |args| crate::hw::power::reboot()
+		meth: |_| crate::hw::power::reboot()
 	},
 	Function {
 		id: 0x588f73f96a7de691,
@@ -25,7 +25,7 @@ const SYSCALL_METHODS: [Function; 4] = [
 					)
 				}
 			) {
-				print!("{}", decoded_str);
+			let _ = print!("{}", decoded_str);
 		}
 	}
 ];

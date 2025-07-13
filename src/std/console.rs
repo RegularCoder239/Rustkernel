@@ -1,5 +1,4 @@
 use core::fmt;
-use super::Mutex;
 
 pub struct Console;
 

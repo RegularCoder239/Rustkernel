@@ -148,7 +148,7 @@ impl<T: Copy, A: Allocator> Index<usize> for Box<[T], A> {
 
 impl<T: Copy, A: Allocator> IndexMut<usize> for Box<[T], A> {
 	fn index_mut(&mut self, idx: usize) -> &mut T {
-		&mut self.as_slice_mut()[idx]
+		&mut self.as_slice_mut()[idx * mem::size_of::<T>()]
 	}
 }
 

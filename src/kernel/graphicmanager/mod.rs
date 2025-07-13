@@ -9,40 +9,44 @@ pub use consolelayer::{
 pub use image::Image;
 pub use layer::Layer;
 
-use core::marker::PhantomData;
-
 pub trait ColorComponent: Copy + Clone {
 	fn from_u8(value: u8) -> Self;
 	fn into_u8(self) -> u8;
 }
 
 #[derive(Copy, Clone)]
-pub struct RGBColor<T: ColorComponent> where T: Clone + Copy {
+pub struct RGBColor {
 	r: u8,
 	g: u8,
-	b: u8,
-	phantom: PhantomData<T>
+	b: u8
 }
 
-impl<T: ColorComponent> RGBColor<T> {
-	const CONSOLE_BG: RGBColor<T> = RGBColor::from_u8(0x25, 0x25, 0x25);
-	const CONSOLE_FG: RGBColor<T> = RGBColor::from_u8(0xe0, 0xe0, 0xe0);
+impl RGBColor {
+	const CONSOLE_BG: RGBColor = RGBColor::from_u8(0x25, 0x25, 0x25);
+	const CONSOLE_FG: RGBColor = RGBColor::from_u8(0xe0, 0xe0, 0xe0);
+	const WHITE: RGBColor = RGBColor::from_u8(0xff, 0xff, 0xff);
 
-	const fn from_u8(r: u8, g: u8, b: u8) -> RGBColor<T> {
+	const fn from_u8(r: u8, g: u8, b: u8) -> RGBColor {
 		RGBColor {
 			r,
 			g,
-			b,
-			phantom: PhantomData
+			b
+		}
+	}
+	fn from<T: ColorComponent>(r: T, g: T, b: T) -> RGBColor {
+		RGBColor {
+			r: r.into_u8(),
+			g: g.into_u8(),
+			b: b.into_u8()
 		}
 	}
 }
 
-impl<T: ColorComponent> Into<u32> for RGBColor<T> {
+impl Into<u32> for RGBColor {
 	fn into(self) -> u32 {
-		(Into::<u8>::into(self.r) as u32) |
-		(Into::<u8>::into(self.g) as u32) << 8 |
-		(Into::<u8>::into(self.b) as u32) << 16
+		(self.r as u32) |
+		(self.g as u32) << 8 |
+		(self.b as u32) << 16
 	}
 }
 
@@ -52,6 +56,14 @@ impl ColorComponent for u8 {
 	}
 	fn into_u8(self) -> u8 {
 		self
+	}
+}
+impl ColorComponent for f32 {
+	fn from_u8(value: u8) -> Self {
+		value as f32 / 255.0
+	}
+	fn into_u8(self) -> u8 {
+		(self * 255.0) as u8
 	}
 }
 

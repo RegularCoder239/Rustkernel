@@ -39,9 +39,6 @@ impl Logger {
 			outb(byte, 0xe9);
 		}
 	}
-	fn log_console(&mut self, string: &str) {
-
-	}
 }
 
 impl Write for Logger {

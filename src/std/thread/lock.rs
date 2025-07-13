@@ -1,4 +1,3 @@
-use core::hint;
 use core::sync::atomic::{
 	AtomicBool,
 	Ordering
@@ -22,7 +21,7 @@ impl Lock {
 
 	pub fn lock(&self) {
 		while self.state.swap(true, Ordering::Acquire) {
-			hint::spin_loop();
+			crate::std::wait();
 		}
 		self.state.store(true, Ordering::Release);
 	}
@@ -33,5 +32,11 @@ impl Lock {
 
 	pub fn is_locked(&self) -> bool {
 		self.state.load(Ordering::Relaxed)
+	}
+
+	pub fn wait(&self) {
+		while self.is_locked() {
+			crate::std::wait();
+		}
 	}
 }

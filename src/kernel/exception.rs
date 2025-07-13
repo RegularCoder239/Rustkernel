@@ -38,7 +38,7 @@ enum Error {
 }
 
 pub fn handle_exception(vector: u8, frame: cpu::InterruptFrame, error: u64) {
-	let process = current_process().expect("Fatal exception in boot task.");
+	let process = current_process().expect("Fatal exception in boot task.").lock();
 	log::error!("Crash! PID:        {}", process.pid);
 	log::error!("       RIP:        0x{:x}", frame.rip);
 	log::error!("       RFLAGS:     0x{:x}", frame.rflags);

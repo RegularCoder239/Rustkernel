@@ -27,7 +27,8 @@ pub enum FSError {
 	InvalidPath
 }
 
-static mut FILE_SYSTEMS: Vec<Mutex<Box<dyn FileStructure>>> = Vec::new();
+static FILE_SYSTEMS: Mutex<Vec<Mutex<Box<dyn FileStructure>>>> = Mutex::new(Vec::new());
+static MOUNTPOINTS: Mutex<Vec<MountPoint>> = Mutex::new(Vec::new());
 
 pub fn readresult_to_str(readresult: Result<Box<[u8]>, FSError>) -> Result<String, FSError> {
 	if let Ok(result) = readresult {
@@ -39,17 +40,18 @@ pub fn readresult_to_str(readresult: Result<Box<[u8]>, FSError>) -> Result<Strin
 
 pub fn mount(mountpoint: MountPoint) -> usize {
 	if let Some(fs) = mount::mount(mountpoint) {
-		unsafe {
-			FILE_SYSTEMS.push_back(Mutex::new(fs));
-			FILE_SYSTEMS.len() - 1
-		}
+		let mut fslock = FILE_SYSTEMS.lock();
+		fslock.push_back(Mutex::new(fs));
+		fslock.len() - 1
 	} else {
 		usize::MAX
 	}
 }
 
+pub fn filesystems() -> Vec<usize> {
+	(0..FILE_SYSTEMS.len()).collect()
+}
+
 pub fn filesystem(id: usize) -> MutexGuard<'static, Box<dyn FileStructure>> {
-	unsafe {
-		FILE_SYSTEMS[id].lock()
-	}
+	FILE_SYSTEMS[id].lock()
 }

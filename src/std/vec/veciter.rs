@@ -7,7 +7,6 @@ use core::{
 use super::{
 	vec::VecBase
 };
-use crate::std::MutableRef;
 
 pub struct VecIter<'vec, T, V> {
 	vec: &'vec V,

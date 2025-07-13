@@ -2,8 +2,7 @@ use crate::std::{
 	Box
 };
 use super::{
-	RGBColor,
-	ColorComponent
+	RGBColor
 };
 
 pub struct Image {
@@ -23,7 +22,7 @@ impl Image {
 		&mut self.data[y * self.size.0 + x]
 	}
 
-	pub fn fill<T: ColorComponent>(&mut self, color: RGBColor<T>) {
+	pub fn fill(&mut self, color: RGBColor) {
 		self.data.as_slice_mut().fill(color.into())
 	}
 

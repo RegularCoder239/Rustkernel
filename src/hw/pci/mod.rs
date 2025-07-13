@@ -28,22 +28,28 @@ use crate::{
 	std::log
 };
 
-static INITALIZED: std::Lock = std::Lock::new_locked();
+static SCAN_LOCK: std::Lock = std::Lock::new_locked();
 
 pub fn scan() -> ! {
 	if let Some(entries) = (*acpi_singleton()).pci_mcfg_entries() {
+		log::info!("Scanning for PCI devices.");
 		for entry in &entries {
 			log::info!("PCI Root Window: {:x}", entry.base_address);
 			Bridge::from_raw_address(entry.base_address).scan();
 		}
 	}
 
-	INITALIZED.unlock();
+	SCAN_LOCK.unlock();
 	std::exit();
 }
 
+pub fn wait_for_scan() {
+	SCAN_LOCK.lock();
+	SCAN_LOCK.unlock();
+}
+
 pub fn setup() -> ! {
-	INITALIZED.lock();
+	wait_for_scan();
 	log::info!("Setting up PCI devices.");
 
 	ethernet::setup_devices();

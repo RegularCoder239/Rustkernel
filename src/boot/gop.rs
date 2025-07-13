@@ -1,29 +1,39 @@
 use uefi::boot::ScopedProtocol;
 use uefi::proto::console::gop::{
 	GraphicsOutput,
-	ModeInfo
+	ModeInfo,
+	Mode
 };
 use uefi::boot;
 
 pub struct GOP {
-	protocol: ScopedProtocol<GraphicsOutput>
+	protocol: ScopedProtocol<GraphicsOutput>,
+	mode: Mode
 }
 
 impl GOP {
 	pub fn new() -> Option<GOP> {
+		let protocol = boot::open_protocol_exclusive::<GraphicsOutput>(
+			boot::get_handle_for_protocol::<GraphicsOutput>().ok()?
+		).ok()?;
 		let mut gop = GOP {
-			protocol: boot::open_protocol_exclusive::<GraphicsOutput>(
-				boot::get_handle_for_protocol::<GraphicsOutput>().ok()?
-			).ok()?
+			mode: protocol.modes().max_by(|mode, mode2| {
+				pixel_amount(mode.info()).cmp(&pixel_amount(mode2.info()))
+			})?,
+			protocol,
 		};
-		let mode = gop.protocol.modes().max_by(|mode, mode2| {
-			pixel_amount(mode.info()).cmp(&pixel_amount(mode2.info()))
-		})?;
-		gop.protocol.set_mode(&mode).ok()?;
+		gop.protocol.set_mode(&gop.mode).ok()?;
 		Some(gop)
 	}
 	pub fn frame_buffer(&mut self) -> *mut u32 {
+		crate::std::log::info!("Help: {:x?}", self.protocol.frame_buffer().as_mut_ptr() as *mut u32);
 		self.protocol.frame_buffer().as_mut_ptr() as *mut u32
+	}
+	pub fn stride(&self) -> usize {
+		self.mode.info().stride()
+	}
+	pub fn size(&mut self) -> usize {
+		self.protocol.frame_buffer().size()
 	}
 	pub fn resolution(&self) -> (usize, usize) {
 		self.protocol.current_mode_info().resolution()

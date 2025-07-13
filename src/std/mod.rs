@@ -7,6 +7,7 @@ mod vec;
 mod reversebytes;
 mod log_intern;
 mod console;
+mod file;
 
 pub mod elf;
 pub mod log {
@@ -49,6 +50,13 @@ pub use thread::{
 	current_core,
 	current_core_uncached
 };
+pub use file::{
+	mount,
+	read_file,
+	FilePath,
+	MountPoint
+};
+pub use crate::virt::fs::filesystems;
 pub use alloc::{
 	Allocator,
 	RAMAllocator
@@ -60,7 +68,8 @@ pub use utils::{
 	cr2,
 	reset_cr2,
 	wrmsr,
-	rdmsr
+	rdmsr,
+	wait
 };
 pub use reversebytes::ReverseBytes;
 pub use io::{

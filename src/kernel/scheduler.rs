@@ -9,18 +9,20 @@ use crate::std::{
 	PerCpu,
 	Mutex,
 	Vec,
+	VecBase,
 	RAMAllocator,
 	hltloop,
 	Box,
 	cli,
-	sti
+	sti,
+	MutableCell
 };
 use crate::hw::{
 	cpu
 };
 use core::{
 	arch::asm,
-	ops::IndexMut
+	ops::Index
 };
 use cpu::GDT;
 
@@ -58,7 +60,7 @@ pub struct TaskState {
 }
 
 pub struct Process {
-	pub page_table: Box<PageTable>,
+	pub page_table: MutableCell<Box<PageTable>>,
 	task_state: TaskState,
 	pub r#type: ProcessType,
 	state: ProcessState,
@@ -72,8 +74,9 @@ pub trait RipCast {
 
 static STATE_PER_CPU: PerCpu<TaskState> = PerCpu::new(TaskState::INVALID);
 static PID_PER_CPU: PerCpu<u64> = PerCpu::new(u64::MAX);
-static PROCESSES: Mutex<Vec<Process>> = Mutex::new(Vec::new());
+static PROCESSES: Mutex<Vec<Mutex<Process>>> = Mutex::new(Vec::new());
 static UID_COUNTER: Mutex<u64> = Mutex::new(0x0);
+static NEXT_PROCESS: Mutex<usize> = Mutex::new(0);
 
 #[link(name="switcher")]
 unsafe extern "sysv64" {
@@ -163,13 +166,13 @@ impl Process {
 	pub fn new<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
 		*UID_COUNTER.lock() += 1;
 		let mut process = Process {
-			page_table: PageTable::new_boxed(),
+			page_table: MutableCell::new(PageTable::new_boxed()),
 			task_state: TaskState::INVALID,
 			r#type: ProcessType::NORMAL,
 			state: ProcessState::IDLE,
 			pid: *UID_COUNTER.lock()
 		};
-		process.page_table.init();
+		process.page_table.deref_mut().init();
 		process.task_state = TaskState::new(
 			if privilage == ProcessPrivilage::KERNEL { GDT::CODE_SEG } else { 0x1b },
 			0x0,
@@ -193,16 +196,15 @@ impl Process {
 	pub fn spawn_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<u64> {
 		let process = Self::new_with_stack(privilage, entry_addr)?;
 		let pid = process.pid;
-		PROCESSES.lock().push_back(process);
+		PROCESSES.lock().push_back(Mutex::new(process));
 		Some(pid)
 	}
-	pub fn from_pid(pid: u64) -> Option<&'static mut Process> {
+	pub fn from_pid(pid: u64) -> Option<&'static Mutex<Process>> {
+		let processes = PROCESSES.read();
 		Some(
-			unsafe {
-				PROCESSES.get().index_mut(
-					PROCESSES.get().into_iter().position(|p| p.pid == pid)?
-				)
-			}
+			PROCESSES.read().index(
+				processes.into_iter().position(|p| p.lock().pid == pid)?
+			)
 		)
 	}
 
@@ -222,15 +224,16 @@ impl Process {
 
 	pub fn switch(&'static mut self) {
 		if let Some(current_process) = current_process() {
-			if current_process.state == ProcessState::RUNNING {
-				current_process.state = ProcessState::IDLE;
+			let mut current_process_lock = current_process.lock();
+			if current_process_lock.state == ProcessState::RUNNING {
+				current_process_lock.state = ProcessState::IDLE;
 			}
 		}
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);
 		self.page_table.load();
 
-		crate::mm::set_current_page_table(&mut self.page_table);
+		crate::mm::set_current_page_table(self.page_table.deref_mut());
 		cpu::lapic::LAPIC::end_of_interrupt();
 
 		self.task_state.load()
@@ -242,22 +245,45 @@ impl Process {
 		self.task_state.jump()
 	}
 
-	pub fn kill(&mut self) -> ! {
-		self.state = ProcessState::KILLED;
-		loop {
-			r#yield();
-		}
-	}
-
 	fn set_pid(&mut self, pid: u64) -> &mut Self {
 		self.pid = pid;
 		self
 	}
 
 	pub fn spawn(self) {
-		PROCESSES.lock().push_back(self);
+		PROCESSES.lock().push_back(Mutex::new(self));
 	}
 }
+
+impl Mutex<Process> {
+	pub fn mutex_switch(&'static self) {
+		if let Some(current_process) = current_process() {
+			let mut current_process_lock = current_process.lock();
+			if current_process_lock.state == ProcessState::RUNNING {
+				current_process_lock.state = ProcessState::IDLE;
+			}
+		}
+		{
+			let mut locked = self.lock();
+			locked.state = ProcessState::RUNNING;
+		}
+		PID_PER_CPU.set(self.pid);
+		self.page_table.load();
+
+		crate::mm::set_current_page_table(self.page_table.deref_mut());
+		cpu::lapic::LAPIC::end_of_interrupt();
+
+		self.task_state.load()
+	}
+	pub fn kill(&self) -> ! {
+		self.lock().state = ProcessState::KILLED;
+		loop {
+			r#yield();
+		}
+	}
+}
+
+unsafe impl Sync for Process {}
 
 pub fn init_yield_timer() {
 	cpu::connect_signal(cpu::TIMER, |_| r#yield());
@@ -268,22 +294,30 @@ pub fn r#yield() {
 		return;
 	}
 	cli();
+	let idx = {
+		let mut next_process = NEXT_PROCESS.lock();
+		let org_next_process = *next_process;
+		let processes = PROCESSES.read();
+		let mut processlock = &processes[*next_process];
 
-	let idx = PROCESSES.lock().into_iter().position(|process| {
-		(process.state == ProcessState::IDLE) && process.task_state != *STATE_PER_CPU.deref_mut()
-	});
+		while !((processlock.state == ProcessState::IDLE) && processlock.task_state != *STATE_PER_CPU.deref_mut()) {
+			*next_process = (*next_process + 1) % processes.len();
+			if *next_process == org_next_process {
 
-	if let Some(unwarped_process_idx) = idx {
-		unsafe {
-			PROCESSES.get().index_mut(unwarped_process_idx).switch();
+				// No idle process found.
+				sti();
+				hltloop();
+			}
+			processlock = &processes[*next_process];
 		}
-	} else {
-		sti();
-		hltloop();
-	}
+		*next_process
+	};
+
+	let process = &PROCESSES.read()[idx];
+	Process::from_pid(process.pid).as_ref().unwrap().mutex_switch();
 }
 
-pub fn current_process() -> Option<&'static mut Process> {
+pub fn current_process() -> Option<&'static Mutex<Process>> {
 	Process::from_pid(*PID_PER_CPU.deref_mut())
 }
 

@@ -132,36 +132,8 @@ impl<T, A: Allocator> Vec<T, A> {
 			}
 		}
 	}
-	pub fn fastposition<T2: PartialEq + PartialOrd>(&self, meth: fn(&T) -> T2, what: T2) -> Option<usize> {
-		if self.len() > 12 {
-			let mut idx = 0;
-			while meth(&self[idx]) < what || idx + 8 < self.len() {
-				idx += 8;
-			}
-			if meth(&self[idx]) == what {
-				return Some(idx);
-			}
-			while meth(&self[idx]) > what || idx > 4 {
-				idx -= 4;
-			}
-			if meth(&self[idx]) == what {
-				return Some(idx);
-			}
-			for idx2 in idx..(idx + 8).min(self.len()) {
-				if meth(&self[idx2]) == what {
-					return Some(idx2);
-				}
-			}
-			return None;
-		} else {
-			self.into_iter().position(|it| meth(&it) == what)
-		}
-	}
-
-	pub fn fastfind<T2: PartialEq + PartialOrd>(&self, meth: fn(&T) -> T2, what: T2) -> Option<&T> {
-		Some(
-			self.index(self.fastposition(meth, what)?)
-		)
+	pub fn empty(&self) -> bool {
+		self.len() == 0
 	}
 }
 
@@ -275,6 +247,16 @@ impl<'vec, T: 'vec, A: Allocator> IntoIterator for &'vec mut Vec<T, A> {
 
 	fn into_iter(self) -> Self::IntoIter {
 		Self::IntoIter::new(self)
+	}
+}
+
+impl<T: core::fmt::Display> FromIterator<T> for Vec<T> {
+	fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+		let mut vec = Vec::new();
+		for i in iter {
+			vec.push_back(i);
+		}
+		vec
 	}
 }
 

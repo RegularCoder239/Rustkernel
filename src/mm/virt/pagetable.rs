@@ -75,10 +75,10 @@ impl PageTable {
 		kerneltable::map_pagetable(self);
 		self.initalized = true;
 	}
-	pub fn load(&mut self) -> &mut PageTable {
+	pub fn load(&self) {
 		assume_safe_asm!("mov cr3, {}", in, self.as_cr3());
-		self
 	}
+
 	pub fn flush() {
 		assume_safe_asm!("mov rax, cr3\n
 						  mov cr3, rax");
@@ -165,19 +165,19 @@ impl PageTable {
 		}
 		self.first_free_address[free_map_idx] = first_free_address + size as u64 - addr_space;
 
-		let mut idx = 0;
-		for offset in virt_addr_iterator(first_free_address, size) {
+		let mut current_phys_address = phys_addresses[phys_addresses_amount - 1];
+		for (idx, offset) in virt_addr_iterator(first_free_address, size).enumerate() {
 			if !self.map_page(first_free_address + offset,
 							  if idx < phys_addresses_amount {
 								  phys_addresses[idx]
 							  } else {
-							 	  phys_addresses[phys_addresses_amount-1] + ((idx-phys_addresses_amount) * aligned_size) as u64
+								  current_phys_address += aligned_size as u64;
+								  current_phys_address
 							  },
 							  aligned_size,
 							  flags) {
 				panic!("Mapping failed.");
 			}
-			idx += 1;
 		}
 
 		PageTable::flush();

@@ -16,9 +16,8 @@ static INITALIZED: PerCpu<bool> = PerCpu::new(false);
 
 pub const fn align_size(size: usize) -> usize {
 	if size < 0x200000 {
-		return 0x1000;
-	}
-	if size < 0x40000000 {
+		0x1000
+	} else if size < 0x40000000 {
 		0x200000
 	} else {
 		0x40000000

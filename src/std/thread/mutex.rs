@@ -1,7 +1,6 @@
-use super::lock::Lock;
-use super::super::{
-	r#yield,
-	MutableCell
+use super::{
+	lock::Lock,
+	super::MutableCell
 };
 use core::ops::{
 	Deref,
@@ -10,6 +9,7 @@ use core::ops::{
 
 pub struct Mutex<T> {
 	lock: Lock,
+	rdlock: Lock,
 	content: MutableCell<T>
 }
 
@@ -24,6 +24,14 @@ impl<T> Mutex<T> {
 	pub const fn new(value: T) -> Mutex<T> {
 		Mutex {
 			lock: Lock::new(),
+			rdlock: Lock::new(),
+			content: MutableCell::new(value)
+		}
+	}
+	pub const fn new_rdfused(value: T) -> Mutex<T> {
+		Mutex {
+			lock: Lock::new(),
+			rdlock: Lock::new_locked(),
 			content: MutableCell::new(value)
 		}
 	}
@@ -46,22 +54,37 @@ impl<T> Mutex<T> {
 		}
 	}
 
+	pub fn unfuse(&self) {
+		self.rdlock.unlock();
+	}
+
 	fn unlock(&self) {
 		self.lock.unlock()
 	}
 
-	fn _get(&self) -> &mut T {
+	fn get(&self) -> &mut T {
 		self.content.deref_mut()
 	}
-	pub unsafe fn get(&self) -> &mut T {
-		self._get()
+}
+
+impl<T: Sync> Mutex<T> {
+	pub fn read(&self) -> &T {
+		self.rdlock.wait();
+		self.get()
+	}
+}
+
+impl<T: Sync> Deref for Mutex<T> {
+	type Target = T;
+	fn deref(&self) -> &T {
+		self.read()
 	}
 }
 
 impl<T> Mutex<Option<T>> {
 	pub fn lock_opt(&self) -> OptMutexGuard<'_, T> {
-		while self._get().is_none() {
-			r#yield();
+		while self.get().is_none() {
+			crate::std::wait();
 		}
 		OptMutexGuard::new(self)
 	}
@@ -81,13 +104,13 @@ impl<'mutex, T> Deref for MutexGuard<'mutex, T> {
 	type Target = T;
 
 	fn deref(&self) -> &'mutex T {
-		self.mutex._get()
+		self.mutex.get()
 	}
 }
 
 impl<'mutex, T> DerefMut for MutexGuard<'mutex, T> {
 	fn deref_mut(&mut self) -> &'mutex mut T {
-		self.mutex._get()
+		self.mutex.get()
 	}
 }
 
@@ -105,7 +128,7 @@ impl<'mutex, T> OptMutexGuard<'mutex, T> {
 	}
 
 	pub fn get_opt(&self) -> Option<&'mutex mut T> {
-		self.mutex._get().as_mut()
+		self.mutex.get().as_mut()
 	}
 }
 

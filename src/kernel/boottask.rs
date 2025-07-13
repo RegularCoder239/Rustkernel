@@ -9,12 +9,14 @@ pub struct BootTask(Process);
 
 type BootTaskMeth = fn() -> !;
 
-const BOOT_PROCESSES: [BootTaskMeth; 5] = [
+const BOOT_PROCESSES: [BootTaskMeth; 6] = [
+	super::graphicmanager::setup_console_task,
 	hw::acpi::setup,
 	hw::pci::scan,
 	hw::pci::setup,
 	hw::traits::disk::setup_disks,
-	super::graphicmanager::setup_console_task
+
+	super::spawn_init
 ];
 
 impl BootTask {

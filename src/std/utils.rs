@@ -1,4 +1,5 @@
 use core::arch::asm;
+use crate::kernel::is_initalized;
 
 #[macro_export]
 macro_rules! assume_safe_asm {
@@ -18,6 +19,16 @@ macro_rules! assume_safe_asm {
 pub fn hltloop() -> ! {
 	loop {
 		assume_safe_asm!("hlt");
+	}
+}
+
+#[inline]
+pub fn wait() {
+	if is_initalized() {
+		super::r#yield();
+	} else {
+		assert!(super::count_cores() > 1, "Fatal deadlock.");
+		assume_safe_asm!("pause");
 	}
 }
 

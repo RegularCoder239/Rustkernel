@@ -1,6 +1,6 @@
 use super::super::{
 	HeaderType0,
-	super::Disk,
+	super::PhysicalDisk,
 	super::add_disk,
 	super::Sector
 };
@@ -10,7 +10,8 @@ use crate::hw::pci::{
 };
 use crate::std::{
 	Vec,
-	VecBase
+	VecBase,
+	Mutex
 };
 use crate::mm::Address;
 
@@ -40,9 +41,10 @@ struct Queue {
 pub struct NVMEDrive {
 	header: NVMEHeader,
 	registers: Box<NVMERegisters>,
-	doorbells: Box<[u32; 64]>,
+	doorbells: Mutex<Box<[u32; 64]>>,
 	cap_stride: usize,
-	queues: Vec<Queue>,
+	io_queues: Mutex<Vec<Mutex<Queue>>>,
+	admin_queue: Mutex<Queue>,
 	active_namespaces: Box<[u16; 1024]>
 }
 #[repr(C, packed)]
@@ -71,69 +73,80 @@ impl DeviceTrait for NVMEHeader {
 }
 
 impl NVMEDrive {
-	pub fn from_raw_address(header_addr: u64) -> Box<dyn Disk> {
+	pub fn from_raw_address(header_addr: u64) -> Box<dyn PhysicalDisk> {
 		let header = NVMEHeader::from_raw_address(header_addr);
 		let base_address = ((header.0.bar_addresses[1] as u64) << 32) | (header.0.bar_addresses[0] as u64 & 0xfffffff0);
+
+		let admin_queue = Queue::new(0);
+		let mut registers: Box<NVMERegisters> = Box::from_raw_address(base_address);
+		registers.admin_submission_queue = admin_queue.submission_physical_address();
+		registers.admin_completion_queue = admin_queue.completion_physical_address();
+
 		Box::new(NVMEDrive {
-			registers: Box::from_raw_address(base_address),
+			registers,
 			header: header,
 			cap_stride: (base_address as usize >> 12) & 0xf,
-			doorbells: Box::from_raw_address(base_address + 0x1000),
-			queues: Vec::new(),
+			doorbells: Mutex::new(Box::from_raw_address(base_address + 0x1000)),
+			io_queues: Mutex::new(Vec::new()),
+			admin_queue: Mutex::new(admin_queue),
 			active_namespaces: Box::new_sized(0x1000)
 		})
 	}
 
-	fn doorbell(&mut self, id: usize) {
-		self.doorbells[id * 2 * (4 << self.cap_stride) / 4] = self.queues[id].submission_doorbell_idx as u32;
-		let idx = self.queues[id].completion_doorbell_idx;
-		let completion = &mut self.queues[id].completion_content[idx];
-
+	fn doorbell(&self, queue: &mut Queue) {
+		self.doorbells.lock()[queue.id * 2 * (4 << self.cap_stride) / 4] = queue.submission_doorbell_idx as u32;
+		let idx = queue.completion_doorbell_idx;
+		let completion = &mut queue.completion_content[idx];
 		while completion.status == 0 {}
 
-		self.queues[id].completion_doorbell_idx += 1;
-		self.doorbells[id * 2 * (4 << self.cap_stride) / 4 + 1] = self.queues[id].completion_doorbell_idx as u32;
+		queue.completion_doorbell_idx += 1;
+		self.doorbells.lock()[queue.id * 2 * (4 << self.cap_stride) / 4 + 1] = queue.completion_doorbell_idx as u32;
 	}
-	fn send_admin_command(&mut self, command: SubmissionEntry) {
-		self.queues[0].send(command);
-		self.doorbell(0);
+	fn send_admin_command(&self, command: SubmissionEntry) {
+		let mut admin_queue = self.admin_queue.lock();
+		admin_queue.send(command);
+		self.doorbell(&mut admin_queue);
 	}
-	fn send_io_command(&mut self, command: SubmissionEntry) {
-		self.queues[1].send(command);
-		self.doorbell(1);
+	fn send_io_command(&self, command: SubmissionEntry) {
+		let io_queues = self.io_queues.read();
+		let mut queue = if let Some(queue) = io_queues.into_iter().find(|q| !q.is_locked()) {
+			queue
+		} else {
+			&io_queues[self.create_io_queue()]
+		}.lock();
+
+		queue.send(command);
+		self.doorbell(&mut queue);
 	}
-	fn create_admin_queue(&mut self) {
-		let queue = Queue::new(0);
-		self.registers.admin_submission_queue = queue.submission_physical_address();
-		self.registers.admin_completion_queue = queue.completion_physical_address();
-		self.queues.push_back(queue);
-	}
-	fn create_io_queue(&mut self) {
-		let queue = Queue::new(self.queues.len());
+	fn create_io_queue(&self) -> usize {
+		let mut io_queue_list_lock = self.io_queues.lock();
+		let queue = Queue::new(io_queue_list_lock.len()+1);
 
 		self.send_admin_command(SubmissionEntry::new_io_c_queue(&queue));
 		self.send_admin_command(SubmissionEntry::new_io_s_queue(&queue));
 
-		self.queues.push_back(queue);
+		io_queue_list_lock.push_back(Mutex::new(queue));
+		io_queue_list_lock.len() - 1
 	}
 }
 
-impl Disk for NVMEDrive {
+impl PhysicalDisk for NVMEDrive {
 	fn reset(&mut self) {
 		self.registers.nvm_subsystem_reset = 0x4e564d65;
 		self.registers.controller_configuration = 0;
+		{
+			let queue = self.admin_queue.lock();
 
-		self.create_admin_queue();
-
+			self.registers.admin_submission_queue = queue.submission_physical_address();
+			self.registers.admin_completion_queue = queue.completion_physical_address();
+		}
 		self.registers.admin_queue_attributes = 0x200 << 16 | 0x200;
 		self.registers.controller_configuration = 0x460061;
 
-
 		self.send_admin_command(SubmissionEntry::new_get_active_ns(&self.active_namespaces));
-
 		self.create_io_queue();
 	}
-	fn read_lba(&mut self, lba: usize) -> Sector where Self: Sized {
+	fn read_lba(&self, lba: usize) -> Sector where Self: Sized {
 		let buffer: Sector = Box::new_uninit();
 		self.send_io_command(SubmissionEntry::new_io_read(
 			self.active_namespaces[0] as u32,

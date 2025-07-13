@@ -9,7 +9,8 @@ use crate::std::{
 	Mutex,
 	exit,
 	StackVec,
-	log
+	log,
+	Lock
 };
 use acpi::{
 	AcpiTables,
@@ -33,6 +34,7 @@ pub struct PCIMCFGEntry {
 }
 
 static ACPI_SINGLETON: Mutex<Option<ACPI>> = Mutex::new(None);
+static ACPI_SETUP: Lock = Lock::new_locked();
 
 impl ACPI {
 	pub fn pci_mcfg_entries(&self) -> Option<StackVec<PCIMCFGEntry, 0x10>> {
@@ -83,13 +85,12 @@ pub fn setup() -> ! {
 		madt_mapping: table.find_table::<Madt>().ok(),
 		table: table
 	});
+	ACPI_SETUP.unlock();
 
 	exit();
 }
 
 pub fn acpi_singleton() -> std::OptMutexGuard<'static, ACPI> {
-	while ACPI_SINGLETON.lock().is_none() {
-		std::r#yield();
-	}
+	ACPI_SETUP.lock();
 	ACPI_SINGLETON.lock_opt()
 }

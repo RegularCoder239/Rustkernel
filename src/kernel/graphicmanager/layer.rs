@@ -20,7 +20,8 @@ pub struct Layer<T: ColorComponent> {
 	pub z: u8,
 	pub size: (usize, usize),
 
-	framebuffer: &'static mut [u32],
+	pub framebuffer: &'static mut [u32],
+	pub framebuffer_stride: usize,
 
 	phantom: PhantomData<T>
 }
@@ -44,23 +45,25 @@ impl Layer<u8> {
 impl<T: ColorComponent> Layer<T> {
 	fn new(z: u8) -> Self {
 		let size = resolution().expect("Attempt to create graphic layer without display.");
+		let (framebuffer, framebuffer_stride) = framebuffer().unwrap();
 		Layer {
 			z,
 			size,
-			framebuffer: framebuffer().unwrap(),
+			framebuffer,
+			framebuffer_stride,
 			phantom: PhantomData
 		}
 	}
 
-	pub fn plot_pixel(&mut self, x: usize, y: usize, color: RGBColor<T>) {
-		self.framebuffer[y * self.size.0 + x] = color.into();
+	pub fn plot_pixel(&mut self, x: usize, y: usize, color: RGBColor) {
+		self.framebuffer[y.strict_mul(self.framebuffer_stride) + x] = color.into();
 	}
 
-	pub fn fill_global(&mut self, color: RGBColor<T>) {
+	pub fn fill_global(&mut self, color: RGBColor) {
 		self.framebuffer.fill(color.into());
 	}
 
-	pub fn draw_rect(&mut self, pos: (usize, usize), size: (usize, usize), color: RGBColor<T>) {
+	pub fn draw_rect(&mut self, pos: (usize, usize), size: (usize, usize), color: RGBColor) {
 		for x in pos.0..pos.0 + size.0 {
 			for y in pos.1..pos.1 + size.1 {
 				self.plot_pixel(x, y, color.clone());

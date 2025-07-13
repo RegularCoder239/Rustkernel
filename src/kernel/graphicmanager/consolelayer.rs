@@ -8,8 +8,8 @@ use crate::std::{
 };
 
 pub struct ConsoleLayer {
-	background_color: RGBColor<u8>,
-	foreground_color: RGBColor<u8>,
+	background_color: RGBColor,
+	foreground_color: RGBColor,
 
 	bitmap_font: &'static [u128; 256],
 	char_amount: (usize, usize),
@@ -19,7 +19,11 @@ pub struct ConsoleLayer {
 	layer: &'static mut Layer<u8>
 }
 
-static CONSOLE_LAYER: LazyMutex<ConsoleLayer> = LazyMutex::new(ConsoleLayer::new);
+static CONSOLE_LAYER: LazyMutex<ConsoleLayer> = LazyMutex::new(|| {
+	let mut layer = ConsoleLayer::new();
+	layer.setup();
+	layer
+});
 
 impl ConsoleLayer {
 	const GLYPH_SIZE: (usize, usize) = (8, 16);
@@ -38,13 +42,9 @@ impl ConsoleLayer {
 
 	pub fn setup(&mut self) {
 		self.layer.fill_global(self.background_color);
-		self.redraw_cursor();
 	}
 
-	fn redraw_cursor(&mut self) {
-		self.cursor_pos.0 = self.cursor_pos.0.min(self.char_amount.0);
-		self.cursor_pos.1 = self.cursor_pos.1.min(self.char_amount.1);
-
+	fn update_cursor(&mut self) {
 		self.layer.draw_rect(
 			(self.cursor_pos.0 * Self::GLYPH_SIZE.0, self.cursor_pos.1 * Self::GLYPH_SIZE.1 + Self::GLYPH_SIZE.1 - 4),
 			(Self::GLYPH_SIZE.0, 4),
@@ -56,7 +56,7 @@ impl ConsoleLayer {
 		for ch in char_list.chars() {
 			self.print_char(ch);
 		}
-		self.redraw_cursor();
+		self.update_cursor();
 	}
 
 	fn print_char(&mut self, ch: char) {
@@ -66,7 +66,10 @@ impl ConsoleLayer {
 			);
 			self.cursor_pos.0 = 0;
 			self.cursor_pos.1 += 1;
-			return;
+			if self.cursor_pos.1 == self.char_amount.1 {
+
+				self.clear();
+			}
 		} else {
 			self.draw_char(
 				(self.cursor_pos.0 * Self::GLYPH_SIZE.0, self.cursor_pos.1 * Self::GLYPH_SIZE.1),
@@ -88,6 +91,14 @@ impl ConsoleLayer {
 			}
 		}
 	}
+	fn clear(&mut self) {
+		self.cursor_pos = (0, 0);
+		for x in 0..self.char_amount.0 {
+			for y in 0..self.char_amount.1 {
+				self.clear_char((x * Self::GLYPH_SIZE.0, y * Self::GLYPH_SIZE.1));
+			}
+		}
+	}
 	fn clear_char(&mut self, pos: (usize, usize)) {
 		for x in 0..Self::GLYPH_SIZE.0 {
 			for y in 0..Self::GLYPH_SIZE.1 {
@@ -106,5 +117,5 @@ pub fn console() -> Option<LazyMutexGuard<'static, ConsoleLayer>> {
 }
 
 pub fn init_console() {
-	CONSOLE_LAYER.lock().setup();
+	CONSOLE_LAYER.lock().update_cursor();
 }

@@ -12,7 +12,9 @@ use crate::errors::BootError;
 #[derive(Copy, Clone)]
 pub struct FrameBuffer {
 	pub buffer: *mut u32,
-	pub resolution: (usize, usize)
+	pub resolution: (usize, usize),
+	pub stride: usize,
+	pub size: usize
 }
 
 pub struct UEFIResult {
@@ -23,10 +25,12 @@ pub struct UEFIResult {
 fn setup_services() -> Result<UEFIResult, BootError> {
 	let gop = gop::GOP::new();
 	Ok(UEFIResult {
-		frame_buffer: if let Some(mut true_gop) = gop {
+		frame_buffer: if let Some(mut unwrapped_gop) = gop {
 			Some(FrameBuffer {
-				buffer: true_gop.frame_buffer(),
-				resolution: true_gop.resolution()
+				buffer: unwrapped_gop.frame_buffer(),
+				resolution: unwrapped_gop.resolution(),
+				stride: unwrapped_gop.stride(),
+				size: unwrapped_gop.size()
 			})
 		} else {
 			None

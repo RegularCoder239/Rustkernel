@@ -23,3 +23,9 @@ impl MountPoint {
 		MountPoint::Disk(disk_id)
 	}
 }
+
+impl FilePath<'_> {
+	pub const fn new_unix<'path>(path: &'path str) -> FilePath<'path> {
+		FilePath::Unix(path)
+	}
+}

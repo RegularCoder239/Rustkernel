@@ -7,7 +7,6 @@ use super::{
 	PageTable,
 	PAGE_SIZES
 };
-use crate::boot;
 
 struct KernelTable {
 	legacy_tables: [PageDirectory; 2],

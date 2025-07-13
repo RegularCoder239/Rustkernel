@@ -1,4 +1,3 @@
-use core::arch::asm;
 use crate::std::{
 	Vec,
 	PerCpuLazy,
