@@ -13,13 +13,13 @@ impl fmt::Write for Console {
 
 #[macro_export]
 macro_rules! print {
-	($($args: tt)+) => {
-		write!(crate::std::Console {}, $($args)+)
-	};
+	($($args: tt)+) => {{
+		let _ = write!(crate::std::Console {}, $($args)+);
+	}};
 }
 #[macro_export]
 macro_rules! println {
-	($($args: tt)+) => {
-		writeln!(crate::std::Console {}, $($args)+)
-	};
+	($($args: tt)+) => {{
+		let _ = writeln!(crate::std::Console {}, $($args)+);
+	}};
 }

@@ -11,9 +11,7 @@ use super::{
 use core::{
 	marker::PhantomData,
 	ops::Index,
-	ops::IndexMut,
-	cmp::PartialEq,
-	cmp::PartialOrd
+	ops::IndexMut
 };
 
 pub trait VecBase<T> {
@@ -40,24 +38,6 @@ impl<T, A: Allocator> Vec<T, A> {
 		}
 	}
 
-	pub fn from_optfn<F>(meth: F, amount: usize) -> Option<Vec<T, A>> where F: Fn(usize) -> Option<T> {
-		let mut vec = Vec::new();
-		for idx in 0..amount {
-			vec.push_back((meth)(idx)?);
-		}
-		Some(vec)
-	}
-
-	pub fn push_back(&mut self, what: T) -> &mut T {
-		let idx = self.length;
-		self.length += 1;
-		self.grow();
-
-		let ptr = self.index_mut(idx);
-		*ptr = what;
-		ptr
-	}
-
 	fn index_chunk(&self, mut index: usize) -> (&VecChunk<T, A>, usize) {
 		if self.length <= index {
 			panic!("Attempt to index {} in a vec with length {}.", index, self.length);
@@ -79,37 +59,18 @@ impl<T, A: Allocator> Vec<T, A> {
 		if self.length <= index {
 			panic!("Attempt to index {} in a vec with length {}.", index, self.length);
 		}
+
 		let mut chunk = &mut self.begin;
 		while chunk.capacity() <= index {
 			index -= chunk.capacity();
 			chunk = chunk.next_mut();
-			if chunk.is_none() {
-				panic!("Bug 1");
-			}
 		}
 		(
 			chunk,
 			index
 		)
 	}
-	fn grow(&mut self) {
-		while self.length >= self.capacity {
-			if self.capacity == 0 {
-				self.capacity = 1;
-			}
-			let mut new_chunk = SharedRef::<VecChunk<T, A>>::new(
-				VecChunk::<T, A>::new(self.capacity.next_power_of_two() * 2)
-			);
-			if self.last.is_none() {
-				self.last = new_chunk.split();
-				self.begin = new_chunk;
-			} else {
-				*self.last.next_mut() = new_chunk;
-			}
 
-			self.capacity += self.capacity.next_power_of_two() * 2;
-		}
-	}
 	pub fn swap(&mut self, index1: usize, index2: usize) {
 		if index1 != index2 {
 			unsafe {
@@ -137,7 +98,49 @@ impl<T, A: Allocator> Vec<T, A> {
 	}
 }
 
-impl<T: Default, A: Allocator> Vec<T, A> {
+impl<T, A: Allocator + Default> Vec<T, A> {
+	pub fn from_optfn<F>(meth: F, amount: usize) -> Option<Vec<T, A>> where F: Fn(usize) -> Option<T> {
+		let mut vec = Vec::new();
+		for idx in 0..amount {
+			vec.push_back((meth)(idx)?);
+		}
+		Some(vec)
+	}
+
+	fn grow(&mut self) {
+		if self.capacity == 0 {
+
+			let mut new_chunk = SharedRef::<VecChunk<T, A>>::new(
+				VecChunk::<T, A>::new(4)
+			);
+			self.last = new_chunk.split();
+			self.begin = new_chunk;
+			self.capacity = 4;
+		}
+		while self.length >= self.capacity {
+			let size = self.capacity * 2;
+			let new_chunk = SharedRef::<VecChunk<T, A>>::new(
+				VecChunk::<T, A>::new(size)
+			);
+
+			*(self.last.next_mut()) = new_chunk;
+
+			self.capacity += size;
+		}
+	}
+
+	pub fn push_back(&mut self, what: T) -> &mut T {
+		let idx = self.length;
+		self.length += 1;
+		self.grow();
+
+		let ptr = self.index_mut(idx);
+		*ptr = what;
+		ptr
+	}
+}
+
+impl<T: Default, A: Allocator + Default> Vec<T, A> {
 	pub fn resize(&mut self, target: usize) {
 		let diff = target - self.length;
 		let begin = self.length;
@@ -149,7 +152,7 @@ impl<T: Default, A: Allocator> Vec<T, A> {
 	}
 }
 
-impl<T: Clone, A: Allocator> Vec<T, A> {
+impl<T: Clone, A: Allocator + Default> Vec<T, A> {
 	pub fn from_slice(slice: &[T]) -> Vec<T, A> {
 		let mut vec = Vec::new();
 		for idx in 0..slice.len() {

@@ -1,3 +1,5 @@
+mod graphic;
+
 use crate::hw::cpu::syscall::Function;
 use crate::print;
 use core::fmt::Write;
@@ -34,4 +36,5 @@ pub fn setup() {
 	for meth in SYSCALL_METHODS {
 		meth.add();
 	}
+	graphic::setup();
 }

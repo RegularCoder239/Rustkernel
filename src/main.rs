@@ -3,6 +3,9 @@
 #![feature(ptr_metadata)]
 #![feature(unsize)]
 #![feature(strict_overflow_ops)]
+#![feature(f128)]
+#![feature(f16)]
+
 
 #![allow(dead_code)]
 
@@ -89,7 +92,6 @@ fn boot_core_setup() -> ! {
 	log::debug!("Boot process successfully started.");
 	std::cli();
 	std::wrmsr(0xc0000080, 0xd01);
-
 
 	kernel::boot_core_setup();
 	hw::cpu::setup2();

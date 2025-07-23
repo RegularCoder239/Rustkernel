@@ -113,3 +113,12 @@ macro_rules! add_meth {
 		core::mem::transmute::<*mut u64, $meth_type>(pointer as *mut u64)
 	}}
 }
+
+#[unsafe(no_mangle)]
+fn __gnu_f2h_ieee() {
+	todo!()
+}
+#[unsafe(no_mangle)]
+fn __gnu_h2f_ieee() {
+	todo!()
+}

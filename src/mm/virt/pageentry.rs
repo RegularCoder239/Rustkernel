@@ -28,10 +28,15 @@ impl PageTableEntry {
 		self.content = 0x0;
 	}
 	pub fn set_addr(&mut self, addr: u64, size: usize) {
-		self.content = addr | 0x7;
+		self.content &= 0xfff;
+		self.content |= addr | 0x3;
 		if size != 0x1000 {
 			self.content |= 0x80;
 		}
+	}
+	pub fn set_dir_addr(&mut self, addr: u64) {
+		self.content &= 0xfff;
+		self.content |= addr | 0x7;
 	}
 	pub fn set_flags(&mut self, flags: u64) {
 		self.content |= flags;
@@ -58,7 +63,7 @@ impl PageTableEntry {
 	pub fn mut_dir(&mut self) -> Option<&mut PageDirectory> {
 		if !self.is_present() {
 			let addr = buddy::allocate_aligned(0x1000)?;
-			self.set_addr(addr, 0x1000);
+			self.set_dir_addr(addr);
 		}
 		Some(self.addr().mapped_temporary::<PageDirectory>(0x1000))
 	}

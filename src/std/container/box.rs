@@ -29,7 +29,7 @@ pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 	usize
 );
 
-impl<T, A: Allocator> Box<T, A> {
+impl<T, A: Allocator + Default> Box<T, A> {
 	#[inline(always)]
 	#[must_use]
 	pub fn new(content: T) -> Self {
@@ -45,13 +45,13 @@ impl<T, A: Allocator> Box<T, A> {
 	}
 }
 
-impl<T: ?Sized, A: Allocator> Box<T, A> {
+impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 	pub fn new_sized(size: usize) -> Box<T, A> {
 		Box(
 			NonNull::new(
-				A::DEFAULT.allocate(size).unwrap()
+				A::default().allocate(size).unwrap()
 			).unwrap(),
-			A::DEFAULT,
+			A::default(),
 			size
 		)
 	}
@@ -78,10 +78,13 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 					)
 				)
 			).unwrap(),
-			A::DEFAULT,
+			A::default(),
 			size
 		)
 	}
+}
+
+impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn alloc_len(&self) -> usize {
 		self.2
 	}
@@ -109,7 +112,7 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	}
 }
 
-impl<T: Copy, A: Allocator> Box<[T], A> {
+impl<T: Copy, A: Allocator + Default> Box<[T], A> {
 	pub fn new_slice(data: &[T]) -> Box<[T], A> {
 		let mut r#box = Self::new_sized(data.len() * mem::size_of::<T>());
 		let unwrapped_content = r#box.as_slice_mut();
@@ -176,11 +179,11 @@ impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
 		if ptr as u64 == 0 {
 			return;
 		}
-		self.1.free(ptr, self.alloc_len())
+	//	self.1.free(ptr, self.alloc_len())
 	}
 }
 
-impl<T: Default, A: Allocator> Default for Box<T, A> {
+impl<T: Default, A: Allocator + Default> Default for Box<T, A> {
 	fn default() -> Self {
 		Box::new(T::default())
 	}

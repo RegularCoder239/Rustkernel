@@ -53,13 +53,14 @@ pub use thread::{
 pub use file::{
 	mount,
 	read_file,
-	FilePath,
-	MountPoint
+	FilePath
 };
-pub use crate::virt::fs::filesystems;
 pub use alloc::{
 	Allocator,
-	RAMAllocator
+	RAMAllocator,
+	BasicAllocator,
+	PhysicalRAMAllocator,
+	PageTableMapper
 };
 pub use utils::{
 	hltloop,

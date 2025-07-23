@@ -1,6 +1,6 @@
 [package]
 name = "Secondtry"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [profile.dev]
@@ -10,11 +10,9 @@ panic = "abort"
 acpi = { version = "*", features = [], default-features = false }
 crc = "*"
 paste = "*"
-uefi = { version = "*", features = [], default-features = false }
-uefi-raw = "*"
+uefi = { version = "*", features = [] }
 elf_rs = "*"
 enum-iterator = "*"
 
 [build]
-rustflags = ["link-args=-Tlink.x", "-C", "/debug:dwarf", "relocation-model=pie", "code-model=kernel", "opt-level=1", "lto=yes"]
 target = "x86_64-unknown-uefi"

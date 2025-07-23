@@ -19,7 +19,8 @@ pub use scheduler::{
 	current_process,
 	current_task_state,
 	Process,
-	ProcessPrivilage
+	ProcessPrivilage,
+	ProcessFlags
 };
 
 pub use exception::{
@@ -50,7 +51,7 @@ pub fn spawn_init() -> ! {
 	for disk_id in &disk_ids {
 		let mounted = std::mount(*disk_id);
 		crate::std::log::info!("Mounted disk successfully: {}", disk_id);
-		if std::elf::load_elf_from_file(mounted, std::FilePath::new_unix("/init")) {
+		if std::elf::load_elf_from_file(mounted, std::FilePath::new_unix("/init".into())) {
 			crate::std::log::info!("Found init executable at disk: {}", disk_id);
 			success = true;
 		}
@@ -61,5 +62,5 @@ pub fn spawn_init() -> ! {
 		log::info!("Init processes started successfully.");
 	}
 
-	loop {}
+	std::exit();
 }

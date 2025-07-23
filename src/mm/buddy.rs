@@ -251,7 +251,7 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 		if match size {
 			0x1000 => _1g_buddy.free_4k(addr),
 			0x200000 => _1g_buddy.free_2m(addr),
-			_ => panic!("Internal bug.")
+			_ => unreachable!()
 		} {
 			*TOTAL_ALLOCATED.lock() -= size;
 			return true;

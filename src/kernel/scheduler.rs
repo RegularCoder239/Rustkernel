@@ -2,7 +2,6 @@ use crate::mm::{
 	PageTable
 };
 use crate::{
-	allocate,
 	call_asm
 };
 use crate::std::{
@@ -11,6 +10,7 @@ use crate::std::{
 	Vec,
 	VecBase,
 	RAMAllocator,
+	Allocator,
 	hltloop,
 	Box,
 	cli,
@@ -47,6 +47,10 @@ pub enum ProcessState {
 	KILLED
 }
 
+pub enum ProcessFlags {
+	GraphicManager = 1 << 0
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct TaskState {
@@ -64,6 +68,7 @@ pub struct Process {
 	task_state: TaskState,
 	pub r#type: ProcessType,
 	state: ProcessState,
+	pub flags: u64,
 
 	pub pid: u64
 }
@@ -91,12 +96,6 @@ impl RipCast for u64 {
 }
 
 impl RipCast for fn() -> ! {
-	fn ripcast(&self) -> u64 {
-		*self as *const u8 as u64 + crate::mm::kernel_offset()
-	}
-}
-
-impl RipCast for fn() {
 	fn ripcast(&self) -> u64 {
 		*self as *const u8 as u64 + crate::mm::kernel_offset()
 	}
@@ -131,7 +130,7 @@ impl TaskState {
 				0x0, // R12
 				0x0, // R13
 				0x0, // R14
-				0x0, // R15
+				0x218d628eb863ee89, // R15 (Magic)
 			],
 			rip: rip.ripcast(),
 			rflags: 0x202,
@@ -170,6 +169,7 @@ impl Process {
 			task_state: TaskState::INVALID,
 			r#type: ProcessType::NORMAL,
 			state: ProcessState::IDLE,
+			flags: 0,
 			pid: *UID_COUNTER.lock()
 		};
 		process.page_table.deref_mut().init();
@@ -180,21 +180,21 @@ impl Process {
 		)?;
 		Some(process)
 	}
-	pub fn new_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
+	pub fn new_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr, stack_size: usize) -> Option<Process> {
+
 		let mut process = Process::new(privilage, entry_addr)?;
-		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x30000)? as u64 + 0x30000);
+		process.assign_stack(RAMAllocator::default().allocate::<u8>(stack_size)? as u64 + stack_size as u64);
 		Some(process)
 	}
 	pub fn spawn_init_process<EntryAddr: RipCast>(entry_addr: EntryAddr) -> ! {
-		let mut process = Process::new(ProcessPrivilage::KERNEL, entry_addr).expect("Failed to crate boot setup process.");
+		let mut process = Process::new_with_stack(ProcessPrivilage::KERNEL, entry_addr, 0x15000).expect("Failed to crate boot setup process.");
 		process.set_pid(u64::MAX);
 		process.task_state.rflags = 0x2;
-		process.assign_stack(allocate!(ptr_with_alloc, RAMAllocator, u8, 0x15000).expect("Failed to allocate stack for boot setup process") as u64 + 0x15000);
 
 		process.switch_init()
 	}
 	pub fn spawn_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<u64> {
-		let process = Self::new_with_stack(privilage, entry_addr)?;
+		let process = Self::new_with_stack(privilage, entry_addr, 0x30000)?;
 		let pid = process.pid;
 		PROCESSES.lock().push_back(Mutex::new(process));
 		Some(pid)
@@ -267,7 +267,9 @@ impl Mutex<Process> {
 			let mut locked = self.lock();
 			locked.state = ProcessState::RUNNING;
 		}
+
 		PID_PER_CPU.set(self.pid);
+
 		self.page_table.load();
 
 		crate::mm::set_current_page_table(self.page_table.deref_mut());
@@ -280,6 +282,9 @@ impl Mutex<Process> {
 		loop {
 			r#yield();
 		}
+	}
+	pub fn assign_flags(&self, flags: ProcessFlags) {
+		self.lock().flags |= flags as u64;
 	}
 }
 

@@ -2,7 +2,8 @@ use crate::{
 	hw::Sector,
 	hw::read_lba,
 	hw::read_lbas,
-	std::Box
+	std::Box,
+	std::String
 };
 use super::{
 	FileStructure,
@@ -96,7 +97,6 @@ impl FileStructure for FAT32 {
 					root_directory_sector,
 					boot_sector,
 					boot_sector_info,
-
 				}
 			)
 		} else {
@@ -104,12 +104,14 @@ impl FileStructure for FAT32 {
 		}
 	}
 	fn read(&self, path: FilePath, _: usize, _: usize) -> Result<Box<[u8]>, FSError> {
-		if let FilePath::DOS(fat_path) = path {
+		if let Some(fat_path) = get_raw_path(path) {
 			let entry = self.root_directory.as_slice().into_iter().find(
 				|entry| {
-					core::str::from_utf8(&entry.name).unwrap() == fat_path
+					crate::std::log::info!("{} ", String::from(entry.name));
+					String::from(entry.name) == fat_path.clone()
 				}
 			).ok_or(FSError::FileNotFound)?;
+
 			Ok(
 				self.read_clusters(entry.first_data_cluster_low as usize | ((entry.first_data_cluster_high as usize) << 16), entry.file_size as usize / self.cluster_size + 1)
 			)
@@ -117,4 +119,8 @@ impl FileStructure for FAT32 {
 			Err(FSError::InvalidPath)
 		}
 	}
+}
+
+fn get_raw_path(path: FilePath) -> Option<String> {
+	Some(String::from("INIT       "))
 }

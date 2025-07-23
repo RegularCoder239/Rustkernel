@@ -1,6 +1,10 @@
 use core::ops::{
 	Deref
 };
+use crate::std::{
+	Box,
+	MutableCell
+};
 
 #[derive(Copy, Clone)]
 pub struct MutableRef<T>(*const T);
@@ -25,5 +29,11 @@ impl<T> Deref for MutableRef<T> {
 	type Target = T;
 	fn deref(&self) -> &T {
 		self.deref_mut()
+	}
+}
+
+impl<T> From<&MutableCell<Box<T>>> for MutableRef<T> {
+	fn from(cell: &MutableCell<Box<T>>) -> Self {
+		MutableRef::from_ptr(cell.as_ptr())
 	}
 }

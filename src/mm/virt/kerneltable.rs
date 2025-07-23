@@ -89,10 +89,9 @@ pub fn setup(kernel_region: (u64, u64)) {
 
 pub fn setup_kernel_offset() {
 	*CURRENT_KERNEL_OFFSET.deref_mut() = KERNEL_TABLE.lock().kernel_offset;
-}
 
-pub fn remove_lower_half() {
-	*LEGACY_ENABLED.lock() = false;
+	//*LEGACY_ENABLED.lock() = false;
+	//super::current_page_table().directory[KERNEL_TABLE.lock().legacy_table_l4_idx] = crate::mm::PageTableEntry::EMPTY;
 }
 
 pub fn kernel_offset() -> u64 {

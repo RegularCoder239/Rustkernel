@@ -14,7 +14,7 @@ pub struct VecChunk<T, A: Allocator> {
 	next: SharedRef<VecChunk<T, A>>
 }
 
-impl<T, A: Allocator> VecChunk<T, A> {
+impl<T, A: Allocator + Default> VecChunk<T, A> {
 	pub fn new(capacity: usize) -> VecChunk<T, A> {
 		VecChunk {
 			memory: Box::new_sized(capacity * core::mem::size_of::<T>()),
@@ -22,7 +22,9 @@ impl<T, A: Allocator> VecChunk<T, A> {
 			next: SharedRef::EMPTY
 		}
 	}
+}
 
+impl<T, A: Allocator> VecChunk<T, A> {
 	pub fn capacity(&self) -> usize {
 		self.capacity
 	}

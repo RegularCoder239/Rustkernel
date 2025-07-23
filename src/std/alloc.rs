@@ -26,11 +26,10 @@ pub trait VirtualMapper: Default {
 }
 
 pub trait Allocator {
-	const DEFAULT: Self;
-
 	type VirtualMapper: VirtualMapper;
 	type PhysicalAllocator: PhysicalAllocator;
 
+	fn new(mapper: Self::VirtualMapper) -> Self;
 	fn allocate<T: ?Sized>(&self, amount: usize) -> Option<*mut T> where Self: Sized;
 	fn free(&self, ptr: *const u8, amount: usize) where Self: Sized;
 }
@@ -40,7 +39,7 @@ pub struct RAMAlignedAllocator;
 pub struct PhysicalRAMAllocator;
 #[derive(Default)]
 pub struct KernelGlobalMapper;
-pub struct PageTableMapper(MappingInfo);
+pub struct PageTableMapper(pub MappingInfo);
 pub struct BasicAllocator<V: VirtualMapper, P: PhysicalAllocator> {
 	mapper: V,
 	phantom: PhantomData<P>
@@ -104,24 +103,35 @@ impl VirtualMapper for PageTableMapper {
 	}
 }
 
-impl Allocator for RAMAllocator {
-	const DEFAULT: Self = Self {
-		mapper: KernelGlobalMapper {},
-		phantom: PhantomData
-	};
-	type VirtualMapper = KernelGlobalMapper;
-	type PhysicalAllocator = PhysicalRAMAllocator;
+impl<V: VirtualMapper, P: PhysicalAllocator> Allocator for BasicAllocator<V, P> {
+	type VirtualMapper = V;
+	type PhysicalAllocator = P;
 
+	fn new(mapper: Self::VirtualMapper) -> Self {
+		BasicAllocator {
+			mapper,
+			phantom: PhantomData
+		}
+	}
 	fn allocate<T: ?Sized>(&self, amount: usize) -> Option<*mut T> where Self: Sized {
 		self.mapper.map(
-			PhysicalRAMAllocator::allocate_phys(amount)?,
+			P::allocate_phys(amount)?,
 			amount
 		)
 	}
 
 	fn free(&self, ptr: *const u8, size: usize) where Self: Sized {
-		PhysicalRAMAllocator::free_phys(ptr.physical_address(), size);
+		P::free_phys(ptr.physical_address(), size);
 		self.mapper.unmap(ptr.addr() as u64, size);
+	}
+}
+
+impl<V: VirtualMapper + Default, P: PhysicalAllocator> Default for BasicAllocator<V, P> {
+	fn default() -> Self {
+		Self {
+			mapper: V::default(),
+			phantom: PhantomData
+		}
 	}
 }
 
@@ -138,13 +148,13 @@ fn is_page_aligned(mut size: usize) -> bool {
 	}
 	return true;
 }
-
+/*
 #[macro_export]
 macro_rules! allocate {
 	(ptr_with_alloc, $allocator: ty, $r#type: ty, $size: expr) => {
 		{
 			use crate::std::Allocator;
-			<$allocator as crate::std::Allocator>::DEFAULT.allocate::<$r#type>($size)
+			<$allocator as crate::std::Allocator>::default().allocate::<$r#type>($size)
 		}
 	};
 	(ptr_with_alloc, $allocator: ty, $r#type: ty) => {
@@ -157,3 +167,4 @@ macro_rules! allocate {
 		allocate!(ptr, $r#type, core::mem::size_of::<$r#type>())
 	};
 }
+*/

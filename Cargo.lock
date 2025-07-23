@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "Secondtry"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "acpi",
  "crc",
@@ -12,7 +12,6 @@ dependencies = [
  "enum-iterator",
  "paste",
  "uefi",
- "uefi-raw 0.11.0",
 ]
 
 [[package]]
@@ -186,7 +185,7 @@ dependencies = [
  "ptr_meta",
  "ucs2",
  "uefi-macros",
- "uefi-raw 0.10.0",
+ "uefi-raw",
  "uguid",
 ]
 
@@ -206,16 +205,6 @@ name = "uefi-raw"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d246ed5d6fd71c0331f0ac774a6aefb6cb9170a46f83148cacc70b09f82c87bb"
-dependencies = [
- "bitflags",
- "uguid",
-]
-
-[[package]]
-name = "uefi-raw"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cad96b8baaf1615d3fdd0f03d04a0b487d857c1b51b19dcbfe05e2e3c447b78"
 dependencies = [
  "bitflags",
  "uguid",

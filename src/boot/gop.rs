@@ -26,7 +26,6 @@ impl GOP {
 		Some(gop)
 	}
 	pub fn frame_buffer(&mut self) -> *mut u32 {
-		crate::std::log::info!("Help: {:x?}", self.protocol.frame_buffer().as_mut_ptr() as *mut u32);
 		self.protocol.frame_buffer().as_mut_ptr() as *mut u32
 	}
 	pub fn stride(&self) -> usize {

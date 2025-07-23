@@ -28,6 +28,7 @@ impl BootTask {
 	}
 
 	pub fn add_boot_tasks() {
+
 		for taskidx in 0..BOOT_PROCESSES.len() {
 			BootTask::spawn(BOOT_PROCESSES[taskidx]);
 		}

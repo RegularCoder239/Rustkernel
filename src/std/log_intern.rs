@@ -44,7 +44,8 @@ impl Logger {
 impl Write for Logger {
 	fn write_str(&mut self, string: &str) -> fmt::Result {
 		self.log_port(string);
-		print!("{}", string)
+		print!("{}", string);
+		Ok(())
 	}
 }
 

@@ -7,7 +7,7 @@
   "cpu": "x86-64",
   "crt-objects-fallback": "false",
   "data-layout": "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
-  "debuginfo-kind": "pdb",
+  "debuginfo-kind": "dwarf",
   "disable-redzone": true,
   "dll-tls-export": false,
   "emit-debug-gdb-scripts": false,
@@ -36,22 +36,24 @@
     "msvc": [
       "/NOLOGO",
       "/entry:efi_main",
-      "/subsystem:efi_application"
+      "/subsystem:efi_application",
+      "/BASE:0xffff800000000000"
     ],
     "msvc-lld": [
       "/NOLOGO",
       "/entry:efi_main",
-      "/subsystem:efi_application"
+      "/subsystem:efi_application",
+      "/BASE:0xffff800000000000"
     ]
   },
   "rustc-abi": "x86-softfloat",
   "singlethread": true,
-  "split-debuginfo": "packed",
+  "split-debuginfo": "unpacked",
   "stack-probes": {
     "kind": "call"
   },
   "supported-split-debuginfo": [
-    "packed"
+    "unpacked"
   ],
   "target-pointer-width": "64"
 }

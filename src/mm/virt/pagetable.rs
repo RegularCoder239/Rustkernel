@@ -11,7 +11,6 @@ use crate::std::{
 	log
 };
 use core::{
-	arch::asm,
 	ops::Index,
 	iter::*
 };

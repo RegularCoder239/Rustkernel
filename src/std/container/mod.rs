@@ -65,12 +65,7 @@ impl<T> LazyBox<T> {
 	}
 }
 
-impl<T, A: Allocator> SharedRef<T, A> {
-	pub const EMPTY: SharedRef<T, A> = SharedRef::<T, A> {
-		content: Option::None,
-		ref_counter: 0
-	};
-
+impl<T, A: Allocator + Default> SharedRef<T, A> {
 	pub fn new(content: T) -> SharedRef<T, A> {
 		let mut r#ref = SharedRef::<T, A> {
 			content: Some(
@@ -83,8 +78,13 @@ impl<T, A: Allocator> SharedRef<T, A> {
 		*r#ref = content;
 		r#ref
 	}
-	pub fn is_none(&self) -> bool {
-		self.content.is_none()
+	pub fn split(&mut self) -> Self {
+		self.ref_counter += 1;
+
+		SharedRef {
+			content: self.split_content(),
+			ref_counter: self.ref_counter
+		}
 	}
 	fn split_content(&self) -> Option<ManuallyDrop<Box<T, A>>> {
 		let addr = self.content.as_ref()?.physical_address();
@@ -94,14 +94,19 @@ impl<T, A: Allocator> SharedRef<T, A> {
 			)
 		)
 	}
-	pub fn split(&mut self) -> Self {
-		self.ref_counter += 1;
+}
 
-		SharedRef {
-			content: self.split_content(),
-			ref_counter: self.ref_counter
-		}
+impl<T, A: Allocator> SharedRef<T, A> {
+	pub const EMPTY: SharedRef<T, A> = SharedRef::<T, A> {
+		content: Option::None,
+		ref_counter: 0
+	};
+
+	pub fn is_none(&self) -> bool {
+		self.content.is_none()
 	}
+
+
 	pub fn unwrap(&self) -> Option<&T> {
 		Some(
 			unsafe {

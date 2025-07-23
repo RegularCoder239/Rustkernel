@@ -60,10 +60,10 @@ impl ColorComponent for u8 {
 }
 impl ColorComponent for f32 {
 	fn from_u8(value: u8) -> Self {
-		value as f32 / 255.0
+		value as f32 / 255.0_f32
 	}
 	fn into_u8(self) -> u8 {
-		(self * 255.0) as u8
+		(self * 255.0_f32) as u8
 	}
 }
 

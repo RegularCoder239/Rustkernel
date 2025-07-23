@@ -33,6 +33,7 @@ fn setup_services() -> Result<UEFIResult, BootError> {
 				size: unwrapped_gop.size()
 			})
 		} else {
+			crate::std::log::warn!("No display found.");
 			None
 		},
 		config: config::UEFIConfig::generate()

@@ -31,7 +31,7 @@ pub fn setup() {
 
 #[unsafe(no_mangle)]
 extern "C" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) {
-	crate::std::log::info!("Arg1: {:x} {:x} {:x} {:x}", arg1, arg2, arg3, arg4);
+	crate::std::log::debug!("Syscall args: {:x} {:x} {:x} {:x} {:x}", function, arg1, arg2, arg3, arg4);
 	let lock = FUNCIONALITIES.lock();
 	if let Some(f) = lock.into_iter().find(|a| a.id == function) {
 		(f.meth)(&[arg1, arg2, arg3, arg4]);

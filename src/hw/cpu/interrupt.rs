@@ -171,7 +171,7 @@ impl InterruptDescriptor {
 		reserved_2:			0x0
 	};
 	fn new_void() -> InterruptDescriptor {
-		Self::new(void_handler as u64)
+		InterruptDescriptor::new(void_handler as u64)
 	}
 	const fn new(addr: u64) -> InterruptDescriptor {
 		InterruptDescriptor {

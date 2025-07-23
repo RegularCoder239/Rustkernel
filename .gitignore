@@ -7,3 +7,4 @@ netdump.bat
 rustc-ice*
 /Cargo.lock
 test*
+init

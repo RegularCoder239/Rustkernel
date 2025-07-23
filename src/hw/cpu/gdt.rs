@@ -128,7 +128,7 @@ impl GDT {
 
 	fn setup_tss(&mut self) {
 		(self.gdt[5], self.gdt[6]) = GlobalDescriptor::new_long_tss(&self.tss);
-		self.exception_stack = RAMAllocator::DEFAULT.allocate(0x5000).unwrap();
+		self.exception_stack = RAMAllocator::default().allocate(0x5000).unwrap();
 		let value = self.exception_stack as u64 + 0x5000;
 		self.tss.ist_rsps[0] = value;
 		self.tss.ring_rsps[0] = value;
