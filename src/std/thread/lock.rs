@@ -40,3 +40,13 @@ impl Lock {
 		}
 	}
 }
+
+impl Clone for Lock {
+	fn clone(&self) -> Self {
+		if self.is_locked() {
+			Self::new_locked()
+		} else {
+			Self::new()
+		}
+	}
+}

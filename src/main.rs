@@ -2,10 +2,6 @@
 #![feature(coerce_unsized)]
 #![feature(ptr_metadata)]
 #![feature(unsize)]
-#![feature(strict_overflow_ops)]
-#![feature(f128)]
-#![feature(f16)]
-
 
 #![allow(dead_code)]
 
@@ -95,7 +91,6 @@ fn boot_core_setup() -> ! {
 
 	kernel::boot_core_setup();
 	hw::cpu::setup2();
-
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
 
@@ -114,8 +109,7 @@ macro_rules! uefi_result {
 #[panic_handler]
 fn panic(i: &PanicInfo<'_>) -> ! {
 	//crate::hw::power::shutdown();
-	log::error!("{}", i);
-	print!("Unrecovable kernel panic. Please turn off the pc.");
+	log::error!("{} Unrecovable kernel panic. Please turn off the pc.", i);
 
 	if lapic!("lazybox").is_initalized() {
 		lapic!().poweroff_other_cpus();

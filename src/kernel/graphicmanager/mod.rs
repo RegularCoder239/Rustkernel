@@ -22,18 +22,25 @@ pub struct RGBColor {
 }
 
 impl RGBColor {
-	const CONSOLE_BG: RGBColor = RGBColor::from_u8(0x25, 0x25, 0x25);
-	const CONSOLE_FG: RGBColor = RGBColor::from_u8(0xe0, 0xe0, 0xe0);
-	const WHITE: RGBColor = RGBColor::from_u8(0xff, 0xff, 0xff);
+	pub const CONSOLE_BG: RGBColor = RGBColor::from_u8(0x25, 0x25, 0x25);
+	pub const CONSOLE_FG: RGBColor = RGBColor::from_u8(0xe0, 0xe0, 0xe0);
+	pub const WHITE: RGBColor = RGBColor::from_u8(0xff, 0xff, 0xff);
 
-	const fn from_u8(r: u8, g: u8, b: u8) -> RGBColor {
+	pub const fn from_u8(r: u8, g: u8, b: u8) -> RGBColor {
 		RGBColor {
 			r,
 			g,
 			b
 		}
 	}
-	fn from<T: ColorComponent>(r: T, g: T, b: T) -> RGBColor {
+	pub const fn from_u32(color: u32) -> RGBColor {
+		RGBColor {
+			r: (color & 0xff) as u8,
+			g: ((color >> 8) & 0xff) as u8,
+			b: ((color >> 16) & 0xff) as u8
+		}
+	}
+	pub fn from<T: ColorComponent>(r: T, g: T, b: T) -> RGBColor {
 		RGBColor {
 			r: r.into_u8(),
 			g: g.into_u8(),

@@ -34,7 +34,7 @@ pub fn scan() -> ! {
 	if let Some(entries) = (*acpi_singleton()).pci_mcfg_entries() {
 		log::info!("Scanning for PCI devices.");
 		for entry in &entries {
-			log::info!("PCI Root Window: {:x}", entry.base_address);
+			log::info!("PCI Root Window: {:x} {:?}", entry.base_address, entry.bus_numbers);
 			Bridge::from_raw_address(entry.base_address).scan();
 		}
 	}

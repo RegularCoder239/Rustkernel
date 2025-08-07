@@ -79,14 +79,13 @@ pub fn setup() -> ! {
 			uefi_result!().unwrap().config.acpi as usize // Why is this so stupid!!
 		).expect("No ACPI found.")
 	};
-
 	*ACPI_SINGLETON.lock() = Some(ACPI {
 		mcfg_mapping: table.find_table::<Mcfg>().ok(),
 		madt_mapping: table.find_table::<Madt>().ok(),
 		table: table
 	});
-	ACPI_SETUP.unlock();
 
+	ACPI_SETUP.unlock();
 	exit();
 }
 

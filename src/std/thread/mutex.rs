@@ -7,6 +7,7 @@ use core::ops::{
 	DerefMut
 };
 
+#[derive(Clone)]
 pub struct Mutex<T> {
 	lock: Lock,
 	rdlock: Lock,

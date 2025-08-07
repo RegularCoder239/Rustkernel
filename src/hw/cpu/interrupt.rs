@@ -152,9 +152,7 @@ static IDTS: PerCpuLazy<IDT> = PerCpuLazy::new(IDT::new);
 static INTERRUPT_CONNECTION_METHS: Mutex<[Vec<SignalMethod>; 0x100]> = Mutex::new(
 	[const { Vec::new() }; 0x100]
 );
-static EXCEPTION_CONNECTION_METHS: Mutex<Vec<ExceptionMethod>> = Mutex::new(const {
-	Vec::new()
-});
+static EXCEPTION_CONNECTION_METHS: Mutex<Vec<ExceptionMethod>> = Mutex::new(Vec::new());
 
 extern "x86-interrupt" fn void_handler() {
 
@@ -189,6 +187,7 @@ impl InterruptDescriptor {
 
 impl IDT {
 	pub fn new() -> IDT {
+
 		let mut idt = IDT {
 			descriptors: [InterruptDescriptor::new_void(); 0x100]
 		};
@@ -196,6 +195,7 @@ impl IDT {
 		idt
 	}
 	pub fn load(&self) {
+
 		let idtr = IDTR {
 			limit: 0x1000,
 			base: self as *const IDT as u64 + crate::mm::kernel_offset()

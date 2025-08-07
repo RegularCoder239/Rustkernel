@@ -56,11 +56,9 @@ pub fn spawn_init() -> ! {
 			success = true;
 		}
 	}
-	if !success {
-		panic!("No init executable found.");
-	} else {
-		log::info!("Init processes started successfully.");
-	}
 
-	std::exit();
+	assert!(success, "No init executable found.");
+	log::info!("Init processes started successfully.");
+
+	std::exit()
 }

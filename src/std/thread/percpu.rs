@@ -13,7 +13,7 @@ pub struct PerCpu<T> {
 
 pub struct PerCpuLazy<T>(PerCpu<LazyBox<T>>);
 
-impl<T: Clone+Copy> PerCpu<T> {
+impl<T: Copy> PerCpu<T> {
 	pub const fn new(value: T) -> PerCpu<T> {
 		PerCpu {
 			content: UnsafeCell::new([value; 32])
@@ -24,7 +24,7 @@ impl<T: Clone+Copy> PerCpu<T> {
 impl<T> PerCpu<T> {
 	pub fn unwrap(&self) -> &mut [T; 32] {
 		unsafe {
-			&mut *self.content.get()
+			self.content.get().as_mut().unwrap()
 		}
 	}
 	pub fn deref(&self) -> &T {

@@ -8,7 +8,8 @@ use crate::std::{
 	BasicAllocator,
 	PhysicalRAMAllocator,
 	PageTableMapper,
-	Allocator
+	Allocator,
+	Mutex
 };
 use crate::mm::{
 	MappingInfo,
@@ -35,32 +36,33 @@ pub fn load_elf(data: &[u8]) -> bool {
 			if entry.ph_type() != ProgramType::LOAD {
 				continue;
 			}
-			let mut content = Box::<[u8]>::new_sized(entry.memsz() as usize + 0x3000 - (entry.memsz() % 0x1000) as usize);
-			let padding = entry.vaddr() as usize & 0xfff;
-			for idx in 0..entry.filesz() as usize {
-				content[idx + padding] = data[idx + entry.offset() as usize];
-			}
+			// let mut content = Box::<[u8]>::new_sized(entry.memsz() as usize + 0x3000 - (entry.memsz() % 0x1000) as usize);
+			// let padding = entry.vaddr() as usize & 0xfff;
+			// for idx in 0.. as usize {
+			// 	content[idx + padding] = data[idx + entry.offset() as usize];
+			// }
 			let mut flags = 0x4;
 			if !entry.flags().contains(elf_rs::ProgramHeaderFlags::EXECUTE) {
 				flags |= 0x8000000000000000;
 			}
-			let mapping_info = MappingInfo {
-				page_table: (&process.page_table).into(),
-				address: 0,
-				flags: MappingFlags::User
-			};
-			process.assign_stack(BasicAllocator::<PageTableMapper, PhysicalRAMAllocator>::new(
-				PageTableMapper(
-					mapping_info
-				)
-			).allocate::<u8>(0x1000).unwrap() as u64 + 0x1000);
-			process.page_table.deref_mut().map(
-				entry.vaddr() & !0xfff,
-				content.physical_address() & !0xfff,
-				entry.memsz() as usize,
+
+			process.add_unaligned_mapping(
+				entry.vaddr(),
+				data,
+				entry.offset() as usize,
+				entry.filesz() as usize,
 				flags
 			);
 		}
+		process.assign_stack(BasicAllocator::<PageTableMapper, PhysicalRAMAllocator>::new(
+			PageTableMapper(
+				MappingInfo {
+					page_table: &process.page_table,
+					address: 0,
+					flags: MappingFlags::User
+				}
+			)
+		).allocate::<u8>(0x1000).unwrap() as u64 + 0x1000);
 		process.spawn();
 		true
 	} else {

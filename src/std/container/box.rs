@@ -15,7 +15,8 @@ use core::{
 use crate::{
 	stack_vec,
 
-	mm::Address
+	mm::Address,
+	mm::Mapped
 };
 use crate::std::{
 	Allocator,
@@ -23,10 +24,16 @@ use crate::std::{
 	alloc::VirtualMapper
 };
 
+enum InternFlags {
+	None,
+	UnmapOnly
+}
+
 pub struct Box<T: ?Sized, A: Allocator = RAMAllocator>(
 	NonNull<T>,
 	A,
-	usize
+	usize,
+	InternFlags
 );
 
 impl<T, A: Allocator + Default> Box<T, A> {
@@ -52,7 +59,8 @@ impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 				A::default().allocate(size).unwrap()
 			).unwrap(),
 			A::default(),
-			size
+			size,
+			InternFlags::None
 		)
 	}
 	pub fn new_zeroed(size: usize) -> Box<T, A> {
@@ -60,9 +68,10 @@ impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 		r#box.as_u8_slice_mut().fill(0);
 		r#box
 	}
-	pub fn from_raw_address_sized(addr: u64, size: usize) -> Box<T, A> {
+	pub fn from_raw_address_sized(mut phys_addr: u64, size: usize) -> Box<T, A> {
+		let addr = A::VirtualMapper::default().map::<u8>(stack_vec!{ phys_addr }, size).unwrap() as u64;
 		Self::from_raw_virt_address_sized(
-			A::VirtualMapper::default().map::<u8>(stack_vec!{ addr }, size).unwrap() as u64,
+			addr,
 			size
 		)
 	}
@@ -79,7 +88,8 @@ impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 				)
 			).unwrap(),
 			A::default(),
-			size
+			size,
+			InternFlags::UnmapOnly
 		)
 	}
 }
@@ -140,6 +150,26 @@ impl<T, A: Allocator> Box<[T], A> {
 			)
 		}
 	}
+	pub unsafe fn as_static_slice_mut(&mut self) -> &'static mut [T] {
+		unsafe {
+			core::slice::from_raw_parts_mut(
+				self.0.as_ptr() as *mut T,
+				self.alloc_len() / mem::size_of::<T>()
+			)
+		}
+	}
+}
+
+impl<T: Clone, A: Allocator> Box<[T], A> {
+	pub fn copy_from_slice_with_offset(&mut self, srcoffset: usize, srcslice: &[T], srclimit: usize, dstoffset: usize) {
+		let mut dstslice = self.as_slice_mut();
+		for idx in 0..srclimit {
+			if idx + dstoffset >= dstslice.len() {
+				break;
+			}
+			dstslice[idx + dstoffset] = srcslice[idx + srcoffset].clone();
+		}
+	}
 }
 
 impl<T: Copy, A: Allocator> Index<usize> for Box<[T], A> {
@@ -179,7 +209,25 @@ impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
 		if ptr as u64 == 0 {
 			return;
 		}
-	//	self.1.free(ptr, self.alloc_len())
+		match self.3 {
+			InternFlags::UnmapOnly => {
+				A::VirtualMapper::default().unmap(ptr as u64, self.alloc_len())
+			},
+			_ => {
+			//	self.1.free(ptr, self.alloc_len())
+			}
+		}
+	}
+}
+
+impl<T, A: Allocator + Default> From<&'static mut T> for Box<T, A> {
+	fn from(reference: &'static mut T) -> Self {
+		Box(
+			NonNull::from_ref(reference),
+			A::default(),
+			mem::size_of::<T>(),
+			InternFlags::UnmapOnly
+		)
 	}
 }
 

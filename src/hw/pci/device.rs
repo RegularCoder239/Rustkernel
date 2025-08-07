@@ -53,7 +53,7 @@ impl DeviceTrait for UnspecifiedDevice {
 		if self.header.class_code == 0xff {
 			return;
 		}
-		log::info!("Found device: {}", self.header);
+		log::info!("Found device: {} ClassCode: {:x} Address: {:x}", self.header, self.header.subclass, self.physical_address());
 		self.get_specific_device().scan()
 	}
 }

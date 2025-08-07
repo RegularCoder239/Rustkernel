@@ -38,7 +38,7 @@ impl<T> LazyMutex<T> {
 		}
 	}
 
-	pub fn get(&self) -> &'static mut T {
+	fn get(&self) -> &'static mut T {
 		unsafe {
 			(&mut *self.inner.get()).get_mut()
 		}

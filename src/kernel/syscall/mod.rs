@@ -27,7 +27,10 @@ const SYSCALL_METHODS: [Function; 4] = [
 					)
 				}
 			) {
-			let _ = print!("{}", decoded_str);
+			print!("{}", decoded_str);
+			0x0
+		} else {
+			0x2
 		}
 	}
 ];

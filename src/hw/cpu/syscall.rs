@@ -9,7 +9,7 @@ use core::arch::{
 
 pub struct Function {
 	pub id: u64,
-	pub meth: fn(&[u64])
+	pub meth: fn(&[u64]) -> u64
 }
 
 static FUNCIONALITIES: Mutex<Vec<Function>> = Mutex::new(Vec::new());
@@ -30,29 +30,55 @@ pub fn setup() {
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64) {
-	crate::std::log::debug!("Syscall args: {:x} {:x} {:x} {:x} {:x}", function, arg1, arg2, arg3, arg4);
+pub unsafe extern "sysv64" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) -> u64 {
+	crate::std::log::debug!("Syscall args: {:x} {:x} {:x} {:x} {:x} {:x} {:x}", function, arg1, arg2, arg3, arg4, arg5, arg6);
 	let lock = FUNCIONALITIES.lock();
 	if let Some(f) = lock.into_iter().find(|a| a.id == function) {
-		(f.meth)(&[arg1, arg2, arg3, arg4]);
+		(f.meth)(&[arg1, arg2, arg3, arg4, arg5, arg6])
 	} else {
 		crate::std::log::error!("Invalid syscall opcode: {:x}", function);
+		0x1
 	}
 }
 
 #[unsafe(naked)]
 pub unsafe extern "sysv64" fn __do_syscall() {
 	naked_asm!("swapgs",
-			   "xchg rsp, qword ptr gs:0x0",
-			   "push rcx",
-			   "push r11",
-			   "fwait",
-			   "mov rcx, rax",
-			   "call do_syscall",
-			   "pop r11",
-			   "pop rcx",
-			   "xchg rsp, qword ptr gs:0x0",
-			   "swapgs",
-			   "sysretq"
+				"xchg rsp, qword ptr gs:0x0",
+				"push rax",
+				"push rbx",
+				"push rcx",
+				"push rdx",
+				"push rdi",
+				"push rsi",
+				"push rbp",
+				"push r8",
+				"push r9",
+				"push r10",
+				"push r11",
+				"push r12",
+				"push r13",
+				"push r14",
+				"push r15",
+				"mov rcx, r12",
+				"call do_syscall",
+				"pop r15",
+				"pop r14",
+				"pop r13",
+				"pop r12",
+				"pop r11",
+				"pop r10",
+				"pop r9",
+				"pop r8",
+				"pop rbp",
+				"pop rsi",
+				"pop rdi",
+				"pop rdx",
+				"pop rcx",
+				"pop rbx",
+				//"pop rax",
+				"xchg rsp, qword ptr gs:0x0",
+				"swapgs",
+				"sysretq"
 	)
 }

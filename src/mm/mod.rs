@@ -46,8 +46,12 @@ pub fn setup(memory_map: MemoryMapOwned) {
 	kerneltable::setup(kernel_space);
 
 	virt::setup_global_table();
-	current_page_table()
-		.load();
+	{
+		let mut page_table = current_page_table()
+			.lock();
+		page_table.init();
+		page_table.load();
+	}
 
 	kerneltable::setup_kernel_offset();
 	INITALIZED.set(true);
@@ -56,6 +60,7 @@ pub fn setup(memory_map: MemoryMapOwned) {
 #[inline]
 pub fn per_core_setup() {
 	current_page_table()
+		.lock()
 		.load();
 	INITALIZED.set(true);
 }

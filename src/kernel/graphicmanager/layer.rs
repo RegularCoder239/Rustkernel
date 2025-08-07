@@ -9,40 +9,41 @@ use super::{
 use crate::std::{
 	Box,
 	Vec,
+	VecBase,
 	LazyMutex,
-	MutableCell
+	Mutex,
+	random
 };
-use core::marker::{
-	PhantomData
-};
+use core::ops::Index;
 
-pub struct Layer<T: ColorComponent> {
+pub struct Layer {
 	pub z: u8,
 	pub size: (usize, usize),
+	pub id: u64,
 
 	pub framebuffer: &'static mut [u32],
-	pub framebuffer_stride: usize,
-
-	phantom: PhantomData<T>
+	pub framebuffer_stride: usize
 }
 
-static LAYERS: MutableCell<Vec<Layer<u8>>> = MutableCell::new(Vec::new());
+static LAYERS: Mutex<Vec<Mutex<Layer>>> = Mutex::new(Vec::new());
 static DEPTH_BUFFER: LazyMutex<Box<[u8]>> = LazyMutex::new(
 	|| Box::new_zeroed(
 		{
 			let size = resolution().expect("Attempt to access depth image, when no display is available.");
-			size.0 * size.1
+			let (_, stride) = framebuffer().unwrap();
+			stride * size.1
 		}
 	)
 );
 
-impl Layer<u8> {
-	pub fn add(z: u8) -> &'static mut Self {
-		LAYERS.deref_mut().push_back(Self::new(z))
+impl Layer {
+	pub fn add(z: u8) -> &'static Mutex<Self> {
+		LAYERS.lock().push_back(Mutex::new(Self::new(z)));
+		LAYERS.read().index(LAYERS.len() - 1)
 	}
-}
-
-impl<T: ColorComponent> Layer<T> {
+	pub fn by_id(id: u64) -> Option<&'static Mutex<Layer>> {
+		LAYERS.read().into_iter().find(|x| x.id == id)
+	}
 	fn new(z: u8) -> Self {
 		let size = resolution().expect("Attempt to create graphic layer without display.");
 		let (framebuffer, framebuffer_stride) = framebuffer().unwrap();
@@ -51,23 +52,31 @@ impl<T: ColorComponent> Layer<T> {
 			size,
 			framebuffer,
 			framebuffer_stride,
-			phantom: PhantomData
+			id: random()
 		}
 	}
 
-	pub fn plot_pixel(&mut self, x: usize, y: usize, color: RGBColor) {
-		self.framebuffer[y.strict_mul(self.framebuffer_stride) + x] = color.into();
+	pub fn plot_raw_pixel(&mut self, x: usize, y: usize, raw_color: u32) {
+		let idx = y * self.framebuffer_stride + x;
+		if DEPTH_BUFFER.lock()[idx] <= self.z {
+			DEPTH_BUFFER.lock()[idx] = self.z;
+			self.framebuffer[idx] = raw_color;
+		}
 	}
-
+	pub fn plot_pixel(&mut self, x: usize, y: usize, color: RGBColor) {
+		self.plot_raw_pixel(x, y, color.into());
+	}
 	pub fn fill_global(&mut self, color: RGBColor) {
 		self.framebuffer.fill(color.into());
 	}
-
 	pub fn draw_rect(&mut self, pos: (usize, usize), size: (usize, usize), color: RGBColor) {
+		let raw_color: u32 = color.into();
 		for x in pos.0..pos.0 + size.0 {
 			for y in pos.1..pos.1 + size.1 {
-				self.plot_pixel(x, y, color.clone());
+				self.plot_raw_pixel(x, y, raw_color);
 			}
 		}
 	}
 }
+
+unsafe impl Sync for Layer {}

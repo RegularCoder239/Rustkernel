@@ -4,7 +4,8 @@ use super::{
 };
 use crate::std::{
 	LazyMutex,
-	LazyMutexGuard
+	LazyMutexGuard,
+	Mutex
 };
 
 pub struct ConsoleLayer {
@@ -16,13 +17,11 @@ pub struct ConsoleLayer {
 
 	cursor_pos: (usize, usize),
 
-	layer: &'static mut Layer<u8>
+	layer: &'static Mutex<Layer>
 }
 
 static CONSOLE_LAYER: LazyMutex<ConsoleLayer> = LazyMutex::new(|| {
-	let mut layer = ConsoleLayer::new();
-	layer.setup();
-	layer
+	ConsoleLayer::new()
 });
 
 impl ConsoleLayer {
@@ -41,11 +40,12 @@ impl ConsoleLayer {
 	}
 
 	pub fn setup(&mut self) {
-		self.layer.fill_global(self.background_color);
+		self.layer.lock().fill_global(self.background_color);
+		self.update_cursor();
 	}
 
 	fn update_cursor(&mut self) {
-		self.layer.draw_rect(
+		self.layer.lock().draw_rect(
 			(self.cursor_pos.0 * Self::GLYPH_SIZE.0, self.cursor_pos.1 * Self::GLYPH_SIZE.1 + Self::GLYPH_SIZE.1 - 4),
 			(Self::GLYPH_SIZE.0, 4),
 			RGBColor::CONSOLE_FG
@@ -84,9 +84,9 @@ impl ConsoleLayer {
 		for x in 0..Self::GLYPH_SIZE.0 {
 			for y in 0..Self::GLYPH_SIZE.1 {
 				if (ch >> (y * Self::GLYPH_SIZE.0 + x)) & 0x1 == 0x1 {
-					self.layer.plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_FG);
+					self.layer.lock().plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_FG);
 				} else {
-					self.layer.plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_BG);
+					self.layer.lock().plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_BG);
 				}
 			}
 		}
@@ -102,7 +102,7 @@ impl ConsoleLayer {
 	fn clear_char(&mut self, pos: (usize, usize)) {
 		for x in 0..Self::GLYPH_SIZE.0 {
 			for y in 0..Self::GLYPH_SIZE.1 {
-				self.layer.plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_BG);
+				self.layer.lock().plot_pixel(x + pos.0, y + pos.1, RGBColor::CONSOLE_BG);
 			}
 		}
 	}
@@ -117,5 +117,5 @@ pub fn console() -> Option<LazyMutexGuard<'static, ConsoleLayer>> {
 }
 
 pub fn init_console() {
-	CONSOLE_LAYER.lock().update_cursor();
+	CONSOLE_LAYER.lock().setup();
 }

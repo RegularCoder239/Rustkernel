@@ -8,6 +8,7 @@ mod reversebytes;
 mod log_intern;
 mod console;
 mod file;
+mod random;
 
 pub mod elf;
 pub mod log {
@@ -33,7 +34,6 @@ pub use container::{
 	r#box::Box,
 	string::String,
 	unsaferef::UnsafeRef,
-	mutableref::MutableRef,
 	mutablecell::MutableCell
 };
 
@@ -77,6 +77,7 @@ pub use io::{
 	outb
 };
 pub use crate::kernel::r#yield;
+pub use random::random;
 
 pub fn exit() -> ! {
 	crate::kernel::exit_current_process()

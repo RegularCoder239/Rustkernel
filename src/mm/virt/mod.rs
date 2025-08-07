@@ -27,7 +27,9 @@ pub use kerneltable::{
 use crate::std::{
 	PerCpuLazy,
 	PerCpu,
-	UnsafeRef
+	SharedRef,
+	Box,
+	Mutex
 };
 
 #[derive(Debug)]
@@ -46,18 +48,13 @@ pub const PAGE_SIZES: [usize; 5] = [
 	0x40000000,
 	0x8000000000
 ];
-static INITIAL_PAGE_TABLES: PerCpu<PageTable> = PerCpu::new(PageTable::EMPTY);
-static GLOBAL_PAGE_TABLE_MUTEX: PerCpuLazy<UnsafeRef<PageTable>> = PerCpuLazy::new(
-	|| {
-		let table = UnsafeRef::from_ref(INITIAL_PAGE_TABLES.deref_mut());
-		table.get().init();
-		table
-	}
-);
 
-pub fn current_page_table() -> &'static mut PageTable {
-	GLOBAL_PAGE_TABLE_MUTEX.deref_mut().get()
+static INITIAL_PAGE_TABLE: Mutex<PageTable> = Mutex::new(PageTable::EMPTY);
+static GLOBAL_PAGE_TABLE_MUTEX: PerCpu<&Mutex<PageTable>> = PerCpu::new(&INITIAL_PAGE_TABLE);
+
+pub fn current_page_table() -> &'static Mutex<PageTable> {
+	GLOBAL_PAGE_TABLE_MUTEX.deref()
 }
-pub fn set_current_page_table(table: &'static mut PageTable) {
-	GLOBAL_PAGE_TABLE_MUTEX.set(UnsafeRef::from_ref(table))
+pub fn set_current_page_table(table: &'static Mutex<PageTable>) {
+	GLOBAL_PAGE_TABLE_MUTEX.set(table)
 }

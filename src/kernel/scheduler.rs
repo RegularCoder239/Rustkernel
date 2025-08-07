@@ -7,6 +7,7 @@ use crate::{
 use crate::std::{
 	PerCpu,
 	Mutex,
+	SharedRef,
 	Vec,
 	VecBase,
 	RAMAllocator,
@@ -14,8 +15,7 @@ use crate::std::{
 	hltloop,
 	Box,
 	cli,
-	sti,
-	MutableCell
+	sti
 };
 use crate::hw::{
 	cpu
@@ -63,8 +63,16 @@ pub struct TaskState {
 	pub uid: u64
 }
 
+pub struct ProcessMapping {
+	virt_addr: u64,
+	content: Box<[u8]>,
+	flags: u64
+}
+
 pub struct Process {
-	pub page_table: MutableCell<Box<PageTable>>,
+	pub mappings: Vec<ProcessMapping>,
+	pub mapping_pages: Vec<ProcessMapping>,
+	pub page_table: Box<Mutex<PageTable>>,
 	task_state: TaskState,
 	pub r#type: ProcessType,
 	state: ProcessState,
@@ -165,14 +173,16 @@ impl Process {
 	pub fn new<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<Process> {
 		*UID_COUNTER.lock() += 1;
 		let mut process = Process {
-			page_table: MutableCell::new(PageTable::new_boxed()),
+			mappings: Vec::new(),
+			mapping_pages: Vec::new(),
+			page_table: PageTable::new_boxed(),
 			task_state: TaskState::INVALID,
 			r#type: ProcessType::NORMAL,
 			state: ProcessState::IDLE,
 			flags: 0,
 			pid: *UID_COUNTER.lock()
 		};
-		process.page_table.deref_mut().init();
+		process.page_table.lock().init();
 		process.task_state = TaskState::new(
 			if privilage == ProcessPrivilage::KERNEL { GDT::CODE_SEG } else { 0x1b },
 			0x0,
@@ -181,13 +191,12 @@ impl Process {
 		Some(process)
 	}
 	pub fn new_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr, stack_size: usize) -> Option<Process> {
-
 		let mut process = Process::new(privilage, entry_addr)?;
 		process.assign_stack(RAMAllocator::default().allocate::<u8>(stack_size)? as u64 + stack_size as u64);
 		Some(process)
 	}
 	pub fn spawn_init_process<EntryAddr: RipCast>(entry_addr: EntryAddr) -> ! {
-		let mut process = Process::new_with_stack(ProcessPrivilage::KERNEL, entry_addr, 0x15000).expect("Failed to crate boot setup process.");
+		let mut process = Process::new_with_stack(ProcessPrivilage::KERNEL, entry_addr, 0x25000).expect("Failed to crate boot setup process.");
 		process.set_pid(u64::MAX);
 		process.task_state.rflags = 0x2;
 
@@ -207,7 +216,6 @@ impl Process {
 			)
 		)
 	}
-
 	pub fn set_custom_offset(&mut self, offset: u64) -> &mut Process {
 		self.task_state.rip += offset;
 		self
@@ -233,7 +241,7 @@ impl Process {
 		PID_PER_CPU.set(self.pid);
 		self.page_table.load();
 
-		crate::mm::set_current_page_table(self.page_table.deref_mut());
+		crate::mm::set_current_page_table(&self.page_table);
 		cpu::lapic::LAPIC::end_of_interrupt();
 
 		self.task_state.load()
@@ -252,6 +260,43 @@ impl Process {
 
 	pub fn spawn(self) {
 		PROCESSES.lock().push_back(Mutex::new(self));
+	}
+
+	pub fn add_mapping(&mut self, virt_addr: u64, content: Box<[u8]>, flags: u64) {
+		assert!(virt_addr & 0xfff == 0, "Attempt to add unaligned mapping.");
+		assert!(content.alloc_len() & 0xfff == 0, "Mapped content has an unaligned size.");
+
+		let mapping = self.mappings.push_back(ProcessMapping {
+			virt_addr,
+			content,
+			flags
+		});
+		self.page_table.lock().map(virt_addr, mapping.content.physical_address(), mapping.content.alloc_len(), flags);
+	}
+
+	pub fn add_unaligned_mapping(&mut self, mut virt_addr: u64, content: &[u8], mut content_offset: usize, mut content_limit: usize, mut flags: u64) {
+	//	while content_limit > 0 {
+			let mut mapping_page = if let Some(mut mapping_page) = (&mut self.mapping_pages).into_iter().find(|page| page.virt_addr == virt_addr & !0xfff) {
+				mapping_page
+			} else {
+				let mut page = self.mapping_pages.push_back(ProcessMapping {
+					virt_addr: virt_addr & !0xfff,
+					content: Box::new_sized(0x1000),
+					flags: flags
+				});
+				self.page_table.lock().map(virt_addr, page.content.physical_address(), 0x1000, flags);
+				page
+			};
+			if mapping_page.flags != flags {
+				crate::std::log::warn!("Cannot assign unaligned mapping flags. Using existing flags.");
+				flags = mapping_page.flags;
+			}
+			let tocopy = content_limit.min(0x1000 - (content_offset & 0xfff));
+			mapping_page.content.copy_from_slice_with_offset(content_offset, content, content_limit, (virt_addr & 0xfff) as usize);
+			content_limit -= tocopy;
+			content_offset += tocopy;
+			virt_addr += tocopy as u64;
+//		}
 	}
 }
 
@@ -272,7 +317,7 @@ impl Mutex<Process> {
 
 		self.page_table.load();
 
-		crate::mm::set_current_page_table(self.page_table.deref_mut());
+		crate::mm::set_current_page_table(&self.page_table);
 		cpu::lapic::LAPIC::end_of_interrupt();
 
 		self.task_state.load()
@@ -308,7 +353,6 @@ pub fn r#yield() {
 		while !((processlock.state == ProcessState::IDLE) && processlock.task_state != *STATE_PER_CPU.deref_mut()) {
 			*next_process = (*next_process + 1) % processes.len();
 			if *next_process == org_next_process {
-
 				// No idle process found.
 				sti();
 				hltloop();

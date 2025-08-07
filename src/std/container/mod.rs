@@ -1,7 +1,7 @@
 pub mod r#box;
 pub mod unsaferef;
 pub mod string;
-pub mod mutableref;
+//pub mod mutableref;
 pub mod mutablecell;
 
 use core::mem::{
@@ -105,7 +105,6 @@ impl<T, A: Allocator> SharedRef<T, A> {
 	pub fn is_none(&self) -> bool {
 		self.content.is_none()
 	}
-
 
 	pub fn unwrap(&self) -> Option<&T> {
 		Some(

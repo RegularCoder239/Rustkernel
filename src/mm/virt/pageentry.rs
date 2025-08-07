@@ -1,5 +1,6 @@
 use super::{
 	PageDirectory,
+	PageTable,
 	Mapped
 };
 use super::super::buddy;
@@ -28,15 +29,15 @@ impl PageTableEntry {
 		self.content = 0x0;
 	}
 	pub fn set_addr(&mut self, addr: u64, size: usize) {
-		self.content &= 0xfff;
-		self.content |= addr | 0x3;
+		//self.content &= 0xfff;
+		self.content = addr | 0x3;
 		if size != 0x1000 {
 			self.content |= 0x80;
 		}
 	}
 	pub fn set_dir_addr(&mut self, addr: u64) {
 		self.content &= 0xfff;
-		self.content |= addr | 0x7;
+		self.content = addr | 0x7;
 	}
 	pub fn set_flags(&mut self, flags: u64) {
 		self.content |= flags;

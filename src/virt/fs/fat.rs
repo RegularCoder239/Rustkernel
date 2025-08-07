@@ -93,7 +93,7 @@ impl FileStructure for FAT32 {
 					cluster_size: boot_sector_info.sectors_per_cluster as usize * 512,
 					disk_id,
 					data_lba,
-					root_directory: Box::from_raw_address_sized(root_directory_sector.physical_address(), 0x200),
+					root_directory: Box::from_raw_address_sized(root_directory_sector.physical_address(), core::mem::size_of::<DirectoryEntry>() * 0x10),
 					root_directory_sector,
 					boot_sector,
 					boot_sector_info,
@@ -104,10 +104,13 @@ impl FileStructure for FAT32 {
 		}
 	}
 	fn read(&self, path: FilePath, _: usize, _: usize) -> Result<Box<[u8]>, FSError> {
+		crate::std::log::info!("123");
 		if let Some(fat_path) = get_raw_path(path) {
+			crate::std::log::info!("123");
 			let entry = self.root_directory.as_slice().into_iter().find(
 				|entry| {
-					crate::std::log::info!("{} ", String::from(entry.name));
+					crate::std::log::info!("123");
+					crate::std::log::info!("{:?}", entry.name);
 					String::from(entry.name) == fat_path.clone()
 				}
 			).ok_or(FSError::FileNotFound)?;
@@ -122,5 +125,6 @@ impl FileStructure for FAT32 {
 }
 
 fn get_raw_path(path: FilePath) -> Option<String> {
+	// TODO: Proper converter
 	Some(String::from("INIT       "))
 }
