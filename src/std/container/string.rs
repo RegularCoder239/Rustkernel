@@ -6,6 +6,7 @@ use core::fmt::Display;
 use core::fmt;
 use core::ops::{
 	AddAssign,
+	Add,
 	Deref,
 	Range
 };
@@ -15,9 +16,19 @@ pub struct String {
 }
 
 impl String {
-	pub fn from_bytes(bytes: Box<[u8]>) -> String {
+	pub fn new() -> String {
 		String {
-			content: Some(bytes)
+			content: None
+		}
+	}
+	pub fn new_filled(byte: char, length: usize) -> String {
+		String {
+			content: Some(Box::new_filled(byte as u8, length))
+		}
+	}
+	pub unsafe fn new_uninit(length: usize) -> String {
+		String {
+			content: Some(Box::new_sized(length))
 		}
 	}
 	pub fn as_str(&self) -> &str {
@@ -30,6 +41,18 @@ impl String {
 			content.as_slice()
 		} else {
 			&[]
+		}
+	}
+	pub fn bytes_mut(&mut self) -> &mut [u8] {
+		if let Some(content) = &mut self.content {
+			content.as_slice_mut()
+		} else {
+			&mut []
+		}
+	}
+	pub fn chars(&self) -> &[char] {
+		unsafe {
+			&*(self.bytes() as *const [u8] as *const [char])
 		}
 	}
 	pub fn find_all(&self, ch: char) -> Vec<usize> {
@@ -58,9 +81,12 @@ impl String {
 			0
 		}
 	}
-	pub fn new() -> String {
-		String {
-			content: None
+
+	pub fn padded(&self, length: usize, padcharacter: char) -> String {
+		if self.len() >= length {
+			self.clone()
+		} else {
+			self.clone() + String::new_filled(padcharacter, length - self.len())
 		}
 	}
 	pub fn split(&self, ch: char) -> Vec<String> {
@@ -70,7 +96,7 @@ impl String {
 		let findings = self.find_all(ch);
 		for idx in &findings {
 			result.push_back(self.slice(prev_idx..*idx).unwrap());
-			prev_idx = *idx;
+			prev_idx = *idx + 1;
 		}
 		result.push_back(self.slice(prev_idx..self.len()).unwrap());
 		result
@@ -79,6 +105,45 @@ impl String {
 		Some(
 			String::from(self.content.as_ref()?.as_slice().get(range)?)
 		)
+	}
+	pub fn upper(&self) -> String {
+		let mut upper = unsafe {
+			Self::new_uninit(self.len())
+		};
+		let bytesupper = upper.bytes_mut();
+		for (idx, byte) in self.bytes().into_iter().enumerate() {
+			let mut bytecopy = *byte;
+			if bytecopy >= 97 && bytecopy <= 122 {
+				bytecopy -= 32;
+			}
+			bytesupper[idx] = bytecopy;
+		}
+		upper
+	}
+}
+
+impl Add<&String> for &String {
+	type Output = String;
+	fn add(self, toadd: &String) -> String {
+		if toadd.len() == 0 {
+			self.clone()
+		} else {
+			let mut r#box: Box<[u8]> = Box::new_sized(toadd.len() + self.len());
+			let slice = r#box.as_slice_mut();
+			for (idx, ch) in self.bytes().into_iter().chain(toadd.bytes().into_iter()).enumerate() {
+				slice[idx] = *ch;
+			}
+			String {
+				content: Some(r#box)
+			}
+		}
+	}
+}
+
+impl Add<String> for String {
+	type Output = String;
+	fn add(self, toadd: String) -> String {
+		&self + &toadd
 	}
 }
 
@@ -125,13 +190,13 @@ impl Display for String {
 
 impl From<&str> for String {
 	fn from(raw: &str) -> Self {
-		String::from_bytes(Box::new_slice(raw.as_bytes()))
+		String::from(Box::new_slice(raw.as_bytes()))
 	}
 }
 
 impl From<&[char]> for String {
 	fn from(raw: &[char]) -> Self {
-		String::from_bytes(Box::new_slice(
+		String::from(Box::new_slice(
 			unsafe {
 				(raw as *const [char] as *const [u8]).as_ref().unwrap()
 			}
@@ -141,7 +206,7 @@ impl From<&[char]> for String {
 
 impl From<&[u8]> for String {
 	fn from(raw: &[u8]) -> Self {
-		String::from_bytes(Box::new_slice(raw))
+		String::from(Box::new_slice(raw))
 	}
 }
 
@@ -168,5 +233,12 @@ impl<const SIZE: usize> From<[u8; SIZE]> for String {
 impl PartialEq for String {
 	fn eq(&self, tocmp: &String) -> bool {
 		self.bytes().eq(tocmp.bytes())
+	}
+}
+
+impl fmt::Write for String {
+	fn write_str(&mut self, string: &str) -> Result<(), fmt::Error> {
+		self.content = Some(Box::new_slice(string.as_bytes()));
+		Ok(())
 	}
 }

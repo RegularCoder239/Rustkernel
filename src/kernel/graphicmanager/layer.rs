@@ -3,7 +3,6 @@ use crate::hw::graphics::{
 	framebuffer
 };
 use super::{
-	ColorComponent,
 	RGBColor
 };
 use crate::std::{
@@ -27,7 +26,8 @@ pub struct Layer {
 
 static LAYERS: Mutex<Vec<Mutex<Layer>>> = Mutex::new(Vec::new());
 static DEPTH_BUFFER: LazyMutex<Box<[u8]>> = LazyMutex::new(
-	|| Box::new_zeroed(
+	|| Box::new_filled(
+		0,
 		{
 			let size = resolution().expect("Attempt to access depth image, when no display is available.");
 			let (_, stride) = framebuffer().unwrap();

@@ -1,6 +1,5 @@
 use super::{
 	PageDirectory,
-	PageTable,
 	Mapped
 };
 use super::super::buddy;

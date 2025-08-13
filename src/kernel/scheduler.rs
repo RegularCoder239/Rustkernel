@@ -7,7 +7,6 @@ use crate::{
 use crate::std::{
 	PerCpu,
 	Mutex,
-	SharedRef,
 	Vec,
 	VecBase,
 	RAMAllocator,
@@ -203,7 +202,7 @@ impl Process {
 		process.switch_init()
 	}
 	pub fn spawn_with_stack<EntryAddr: RipCast>(privilage: ProcessPrivilage, entry_addr: EntryAddr) -> Option<u64> {
-		let process = Self::new_with_stack(privilage, entry_addr, 0x30000)?;
+		let process = Self::new_with_stack(privilage, entry_addr, 0x50000)?;
 		let pid = process.pid;
 		PROCESSES.lock().push_back(Mutex::new(process));
 		Some(pid)
@@ -230,7 +229,7 @@ impl Process {
 		self
 	}
 
-	pub fn switch(&'static mut self) {
+	/*pub fn switch(&'static mut self) {
 		if let Some(current_process) = current_process() {
 			let mut current_process_lock = current_process.lock();
 			if current_process_lock.state == ProcessState::RUNNING {
@@ -245,7 +244,7 @@ impl Process {
 		cpu::lapic::LAPIC::end_of_interrupt();
 
 		self.task_state.load()
-	}
+	}*/
 
 	fn switch_init(&mut self) -> ! {
 		self.state = ProcessState::RUNNING;
@@ -275,11 +274,11 @@ impl Process {
 	}
 
 	pub fn add_unaligned_mapping(&mut self, mut virt_addr: u64, content: &[u8], mut content_offset: usize, mut content_limit: usize, mut flags: u64) {
-	//	while content_limit > 0 {
-			let mut mapping_page = if let Some(mut mapping_page) = (&mut self.mapping_pages).into_iter().find(|page| page.virt_addr == virt_addr & !0xfff) {
+		while content_limit > 0 {
+			let mapping_page = if let Some(mapping_page) = (&mut self.mapping_pages).into_iter().find(|page| page.virt_addr == virt_addr & !0xfff) {
 				mapping_page
 			} else {
-				let mut page = self.mapping_pages.push_back(ProcessMapping {
+				let page = self.mapping_pages.push_back(ProcessMapping {
 					virt_addr: virt_addr & !0xfff,
 					content: Box::new_sized(0x1000),
 					flags: flags
@@ -296,7 +295,7 @@ impl Process {
 			content_limit -= tocopy;
 			content_offset += tocopy;
 			virt_addr += tocopy as u64;
-//		}
+		}
 	}
 }
 
@@ -311,9 +310,9 @@ impl Mutex<Process> {
 		{
 			let mut locked = self.lock();
 			locked.state = ProcessState::RUNNING;
-		}
 
-		PID_PER_CPU.set(self.pid);
+			PID_PER_CPU.set(locked.pid);
+		}
 
 		self.page_table.load();
 
@@ -324,9 +323,8 @@ impl Mutex<Process> {
 	}
 	pub fn kill(&self) -> ! {
 		self.lock().state = ProcessState::KILLED;
-		loop {
-			r#yield();
-		}
+		r#yield();
+		unreachable!()
 	}
 	pub fn assign_flags(&self, flags: ProcessFlags) {
 		self.lock().flags |= flags as u64;
@@ -336,7 +334,7 @@ impl Mutex<Process> {
 unsafe impl Sync for Process {}
 
 pub fn init_yield_timer() {
-	cpu::connect_signal(cpu::TIMER, |_| r#yield());
+	//cpu::connect_signal(cpu::TIMER, |_| r#yield());
 }
 
 pub fn r#yield() {
@@ -347,7 +345,7 @@ pub fn r#yield() {
 	let idx = {
 		let mut next_process = NEXT_PROCESS.lock();
 		let org_next_process = *next_process;
-		let processes = PROCESSES.read();
+		let processes = PROCESSES.lock();
 		let mut processlock = &processes[*next_process];
 
 		while !((processlock.state == ProcessState::IDLE) && processlock.task_state != *STATE_PER_CPU.deref_mut()) {

@@ -8,10 +8,10 @@ use crate::mm::buddy::{
 	self,
 	BuddyAllocation
 };
+use crate::std::Box;
 use crate::current_page_table;
 use core::marker::PhantomData;
 use super::{
-	StackVec,
 	VecBase
 };
 
@@ -48,6 +48,7 @@ pub struct BasicAllocator<V: VirtualMapper, P: PhysicalAllocator> {
 }
 
 pub type RAMAllocator = BasicAllocator<KernelGlobalMapper, PhysicalRAMAllocator>;
+pub type CustomRAMAllocator<T> = BasicAllocator<T, PhysicalRAMAllocator>;
 
 impl PhysicalAllocator for PhysicalRAMAllocator {
 	const DEFAULT: Self = Self {};
@@ -74,11 +75,25 @@ impl VirtualMapper for KernelGlobalMapper {
 	}
 }
 
+impl PageTableMapper<'_> {
+	pub fn new(flags: MappingFlags) -> Self {
+		PageTableMapper(
+			MappingInfo {
+				addresses: &[],
+				address_amount: 0,
+				flags,
+				page_table: current_page_table()
+			}
+		)
+	}
+}
+
 impl Default for PageTableMapper<'_> {
 	fn default() -> Self {
 		PageTableMapper(
 			MappingInfo {
-				address: 0,
+				addresses: &[],
+				address_amount: 0,
 				flags: MappingFlags::None,
 				page_table: current_page_table()
 			}
@@ -88,11 +103,9 @@ impl Default for PageTableMapper<'_> {
 
 impl VirtualMapper for PageTableMapper<'_> {
 	fn map<T: ?Sized>(&self, addr: BuddyAllocation, amount: usize) -> Option<*mut T> {
-
-		assert!(addr.len() != 1, "Unsupported addr size.");
-
 		let mut info = MappingInfo {
-			address: addr[0],
+			addresses: &addr,
+			address_amount: addr.len(),
 			page_table: self.0.page_table,
 			..self.0
 		};

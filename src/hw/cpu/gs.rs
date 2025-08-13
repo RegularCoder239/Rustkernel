@@ -46,7 +46,7 @@ macro_rules! gs_read {
 
 impl Default for GSContent {
 	fn default() -> Self {
-		let syscall_stack = Box::<[u8]>::new_sized(0x2000);
+		let syscall_stack = Box::<[u8]>::new_sized(0x20000);
 		GSContent {
 			raw: GSContentRaw {
 				syscall_stack: syscall_stack.as_stack(),

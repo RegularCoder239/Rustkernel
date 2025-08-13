@@ -32,7 +32,7 @@ static MOUNTPOINTS: Mutex<Vec<MountPoint>> = Mutex::new(Vec::new());
 
 pub fn readresult_to_str(readresult: Result<Box<[u8]>, FSError>) -> Result<String, FSError> {
 	if let Ok(result) = readresult {
-		Ok(String::from_bytes(result))
+		Ok(String::from(result))
 	} else {
 		Err(readresult.err().unwrap())
 	}

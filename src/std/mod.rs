@@ -32,9 +32,7 @@ pub use container::{
 	LazyBox,
 	SharedRef,
 	r#box::Box,
-	string::String,
-	unsaferef::UnsafeRef,
-	mutablecell::MutableCell
+	string::String
 };
 
 pub use thread::{
@@ -60,7 +58,8 @@ pub use alloc::{
 	RAMAllocator,
 	BasicAllocator,
 	PhysicalRAMAllocator,
-	PageTableMapper
+	PageTableMapper,
+	CustomRAMAllocator
 };
 pub use utils::{
 	hltloop,

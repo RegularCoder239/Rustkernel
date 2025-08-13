@@ -15,8 +15,7 @@ use core::{
 use crate::{
 	stack_vec,
 
-	mm::Address,
-	mm::Mapped
+	mm::Address
 };
 use crate::std::{
 	Allocator,
@@ -63,12 +62,7 @@ impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 			InternFlags::None
 		)
 	}
-	pub fn new_zeroed(size: usize) -> Box<T, A> {
-		let mut r#box: Box<T, A> = Box::new_sized(size);
-		r#box.as_u8_slice_mut().fill(0);
-		r#box
-	}
-	pub fn from_raw_address_sized(mut phys_addr: u64, size: usize) -> Box<T, A> {
+	pub fn from_raw_address_sized(phys_addr: u64, size: usize) -> Box<T, A> {
 		let addr = A::VirtualMapper::default().map::<u8>(stack_vec!{ phys_addr }, size).unwrap() as u64;
 		Self::from_raw_virt_address_sized(
 			addr,
@@ -92,9 +86,30 @@ impl<T: ?Sized, A: Allocator + Default> Box<T, A> {
 			InternFlags::UnmapOnly
 		)
 	}
+	pub fn null() -> Box<T, A> {
+		Self::from_raw_virt_address_sized(0x1, 0x0)
+	}
+}
+
+impl<T, A: Allocator> Box<T, A> {
+	pub fn new_alloc(&self, content: T, allocator: A) -> Box<T, A> {
+		let mut r#box = Self::new_alloc_sized(mem::size_of::<T>(), allocator);
+		*r#box = content;
+		r#box
+	}
 }
 
 impl<T: ?Sized, A: Allocator> Box<T, A> {
+	pub fn new_alloc_sized(size: usize, allocator: A) -> Box<T, A> {
+		Box(
+			NonNull::new(
+				allocator.allocate(size).unwrap()
+			).unwrap(),
+			allocator,
+			size,
+			InternFlags::None
+		)
+	}
 	pub fn alloc_len(&self) -> usize {
 		self.2
 	}
@@ -107,18 +122,8 @@ impl<T: ?Sized, A: Allocator> Box<T, A> {
 	pub fn as_ptr<T2>(&self) -> *mut T2 {
 		self.0.as_ptr() as *mut T2
 	}
-	pub fn as_u8_slice_mut(&mut self) -> &mut [u8] {
-		unsafe {
-			core::slice::from_raw_parts_mut(
-				self.0.as_ptr() as *mut u8,
-				self.alloc_len() / mem::size_of::<u8>() - 0x150000
-			)
-		}
-	}
 	pub fn as_stack(&self) -> *mut u8 {
-		unsafe {
-			(self.0.as_ptr() as *mut u8).byte_add(self.alloc_len())
-		}
+		(self.0.as_ptr() as *mut u8).wrapping_byte_add(self.alloc_len())
 	}
 }
 
@@ -129,6 +134,19 @@ impl<T: Copy, A: Allocator + Default> Box<[T], A> {
 		for idx in 0..data.len() {
 			unwrapped_content[idx] = data[idx];
 		}
+		r#box
+	}
+	pub fn new_slice_with_alloc(data: &[T], allocator: A) -> Box<[T], A> {
+		let mut r#box = Self::new_alloc_sized(data.len() * mem::size_of::<T>(), allocator);
+		let unwrapped_content = r#box.as_slice_mut();
+		for idx in 0..data.len() {
+			unwrapped_content[idx] = data[idx];
+		}
+		r#box
+	}
+	pub fn new_filled(item: T, size: usize) -> Box<[T], A> {
+		let mut r#box: Box<[T], A> = Self::new_sized(size * mem::size_of::<T>());
+		r#box.as_slice_mut().fill(item);
 		r#box
 	}
 }
@@ -162,7 +180,7 @@ impl<T, A: Allocator> Box<[T], A> {
 
 impl<T: Clone, A: Allocator> Box<[T], A> {
 	pub fn copy_from_slice_with_offset(&mut self, srcoffset: usize, srcslice: &[T], srclimit: usize, dstoffset: usize) {
-		let mut dstslice = self.as_slice_mut();
+		let dstslice = self.as_slice_mut();
 		for idx in 0..srclimit {
 			if idx + dstoffset >= dstslice.len() {
 				break;
@@ -214,7 +232,7 @@ impl<T: ?Sized, A: Allocator> Drop for Box<T, A> {
 				A::VirtualMapper::default().unmap(ptr as u64, self.alloc_len())
 			},
 			_ => {
-			//	self.1.free(ptr, self.alloc_len())
+		//		self.1.free(ptr, self.alloc_len())
 			}
 		}
 	}

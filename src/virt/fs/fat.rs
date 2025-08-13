@@ -2,8 +2,12 @@ use crate::{
 	hw::Sector,
 	hw::read_lba,
 	hw::read_lbas,
-	std::Box,
-	std::String
+
+};
+use crate::std::{
+	Box,
+	String,
+	VecBase
 };
 use super::{
 	FileStructure,
@@ -104,13 +108,9 @@ impl FileStructure for FAT32 {
 		}
 	}
 	fn read(&self, path: FilePath, _: usize, _: usize) -> Result<Box<[u8]>, FSError> {
-		crate::std::log::info!("123");
 		if let Some(fat_path) = get_raw_path(path) {
-			crate::std::log::info!("123");
 			let entry = self.root_directory.as_slice().into_iter().find(
 				|entry| {
-					crate::std::log::info!("123");
-					crate::std::log::info!("{:?}", entry.name);
 					String::from(entry.name) == fat_path.clone()
 				}
 			).ok_or(FSError::FileNotFound)?;
@@ -125,6 +125,28 @@ impl FileStructure for FAT32 {
 }
 
 fn get_raw_path(path: FilePath) -> Option<String> {
-	// TODO: Proper converter
-	Some(String::from("INIT       "))
+	fn segment_to_raw(segment: String) -> Option<String> {
+		if segment == "".into() {
+			return None;
+		}
+		let uppersegment = segment.upper();
+		let splitted = uppersegment.split('.');
+
+		match splitted.len() {
+			1 => Some(uppersegment.padded(11, ' ')),
+			2 => if splitted[1].len() <= 3 {
+				Some(splitted[0].padded(8, ' ') + splitted[1].clone())
+			} else {
+				None
+			},
+			_ => None
+		}
+	}
+
+	let segments = path.segments();
+	if segments.len() != 2 {
+		None
+	} else {
+		segment_to_raw(segments[1].clone())
+	}
 }

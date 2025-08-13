@@ -13,11 +13,10 @@ pub struct AcpiMemoryHandler {
 impl AcpiHandler for AcpiMemoryHandler {
 	unsafe fn map_physical_region<T>(&self, phys_addr: usize, size: usize) -> PhysicalMapping<Self, T> {
 		let addr = (((phys_addr as u64) & !0xfff_u64).mapped_global::<T>(size).expect("Failed to do ACPI mapping.") as usize) + (phys_addr & 0xfff);
-		crate::std::log::info!("Mapping: {:x} {:x}", addr as u64, phys_addr);
 		unsafe {
 			PhysicalMapping::new(
 				phys_addr,
-				NonNull::new_unchecked(addr as *mut T),
+				NonNull::new(addr as *mut T).expect("Attempt to map physical address 0x0 as an acpi region."),
 				size,
 				size + 0x2000,
 				AcpiMemoryHandler {}

@@ -38,7 +38,6 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 	))
 }
 
-#[inline]
 pub fn setup(memory_map: MemoryMapOwned) {
 	log::debug!("Setting up memory manager.");
 	buddy::add_memory_map(&memory_map);
@@ -57,11 +56,13 @@ pub fn setup(memory_map: MemoryMapOwned) {
 	INITALIZED.set(true);
 }
 
-#[inline]
 pub fn per_core_setup() {
-	current_page_table()
-		.lock()
-		.load();
+	{
+		let mut page_table = current_page_table()
+			.lock();
+		page_table.init();
+		page_table.load();
+	}
 	INITALIZED.set(true);
 }
 

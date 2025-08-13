@@ -3,10 +3,17 @@ use core::fmt::{
 	Write,
 	self
 };
-use super::outb;
-use crate::print;
+use super::{
+	outb
+};
+use crate::{
+	print
+};
 
-struct Logger;
+#[derive(Default)]
+struct Logger {
+	printing: bool
+}
 
 #[macro_export]
 macro_rules! info {
@@ -41,14 +48,18 @@ impl Logger {
 	}
 }
 
-impl Write for Logger {
+impl fmt::Write for Logger {
 	fn write_str(&mut self, string: &str) -> fmt::Result {
-		self.log_port(string);
-		//print!("{}", string);
+		if !self.printing {
+			self.printing = true;
+			self.log_port(string);
+			print!("{}", string);
+			self.printing = false;
+		}
 		Ok(())
 	}
 }
 
 pub fn log(section: &str, args: Arguments) {
-	let _ = writeln!(Logger {}, "[{}] {}", section, args);
+	let _ = writeln!(Logger::default(), "[{}] {}", section, args);
 }

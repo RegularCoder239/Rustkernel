@@ -62,15 +62,15 @@ macro_rules! define_interrupt_handler_method {
 	};
 	($index:literal, exception) => {
 		paste! {
-			extern "x86-interrupt" fn [<interrupt_handler_ $index>](frame: InterruptFrame) {
-				handle_exception($index, frame, 0)
+			extern "x86-interrupt" fn [<interrupt_handler_ $index>](mut frame: InterruptFrame) {
+				handle_exception($index, &mut frame, 0)
 			}
 		}
 	};
 	($index:literal, exception_with_err) => {
 		paste! {
-			extern "x86-interrupt" fn [<interrupt_handler_ $index>](frame: InterruptFrame, err: u64) {
-				handle_exception($index, frame, err)
+			extern "x86-interrupt" fn [<interrupt_handler_ $index>](mut frame: InterruptFrame, err: u64) {
+				handle_exception($index, &mut frame, err)
 			}
 		}
 	};
@@ -187,7 +187,6 @@ impl InterruptDescriptor {
 
 impl IDT {
 	pub fn new() -> IDT {
-
 		let mut idt = IDT {
 			descriptors: [InterruptDescriptor::new_void(); 0x100]
 		};
@@ -195,7 +194,6 @@ impl IDT {
 		idt
 	}
 	pub fn load(&self) {
-
 		let idtr = IDTR {
 			limit: 0x1000,
 			base: self as *const IDT as u64 + crate::mm::kernel_offset()
@@ -245,14 +243,18 @@ pub fn handle_interrupt(vector: u8) {
 	lapic::LAPIC::end_of_interrupt();
 }
 
-pub fn handle_exception(vector: u8, frame: InterruptFrame, err_code: u64) {
+pub fn handle_exception(vector: u8, frame: &mut InterruptFrame, err_code: u64) {
+	if vector == 0xe && err_code & 0x10 != 0 {
+		frame.rip += crate::mm::kernel_offset();
+		return;
+	}
 	let exception_meths = EXCEPTION_CONNECTION_METHS.try_lock();
 	if let Some(methods) = exception_meths.as_ref() {
 		if methods.deref().len() == 0 {
 			panic!("Fatal exception with no exception handler.");
 		}
 		for method in methods.deref() {
-			method(vector, frame, err_code);
+			method(vector, *frame, err_code);
 		}
 	} else {
 		panic!("Fatal exception in exception handler.");

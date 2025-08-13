@@ -2,19 +2,16 @@ use crate::{
 	current_page_table
 };
 use crate::std::{
-	StackVec,
 	VecBase,
 	Mutex,
-	Box,
-	SharedRef
+	Box
 };
 use crate::mm::{
 	PageTable,
 	buddy::BuddyAllocation
 };
 use core::ops::{
-	Index,
-	Deref
+	Index
 };
 
 const GLOBAL_ADDRESS_SPACE: u64 = 0x100000000000;
@@ -27,7 +24,7 @@ pub trait Mapped {
 	fn mapped<T: ?Sized>(&mut self, amount: usize) -> Option<*mut T> {
 		self.mapped_at(MAP_SPACE, amount)
 	}
-	fn mapped_to_page_table<T: ?Sized, X: Index<usize, Output = u64>>(addr_space: u64, amount: usize, physical_addresses: X, amount_physical_addresses: usize, page_table: &Mutex<PageTable>, flags: u64) -> Option<*mut T> {
+	fn mapped_to_page_table<T: ?Sized, X: Index<usize, Output = u64> + ?Sized>(addr_space: u64, amount: usize, physical_addresses: &X, amount_physical_addresses: usize, page_table: &Mutex<PageTable>, flags: u64) -> Option<*mut T> {
 		let mut lock = page_table.lock();
 		Some(
 			core::ptr::from_raw_parts_mut::<T>(
@@ -40,7 +37,7 @@ pub trait Mapped {
 				).ok()? as *mut (),
 				core::ptr::metadata(
 					unsafe {
-						core::mem::MaybeUninit::<*const T>::zeroed().assume_init()
+						core::mem::zeroed::<*const T>()
 					}
 				)
 			)
@@ -66,7 +63,8 @@ pub enum MappingFlags {
 
 pub struct MappingInfo<'table> {
 	pub page_table: &'table Mutex<PageTable>,
-	pub address: u64,
+	pub addresses: &'table dyn Index<usize, Output = u64>,
+	pub address_amount: usize,
 	pub flags: MappingFlags
 }
 
@@ -76,7 +74,6 @@ impl Mapped for BuddyAllocation {
 	}
 
 	fn mapped_at<T: ?Sized>(&mut self, addr_space: u64, amount: usize) -> Option<*mut T> {
-
 		let length = self.len();
 		Self::mapped_to_page_table(addr_space, amount, self, length, current_page_table(), 0)
 	}
@@ -92,7 +89,7 @@ impl Mapped for u64 {
 	}
 
 	fn mapped_at<T: ?Sized>(&mut self, addr_space: u64, amount: usize) -> Option<*mut T> {
-		Self::mapped_to_page_table(addr_space, amount, [*self], 1, current_page_table(), 0)
+		Self::mapped_to_page_table(addr_space, amount, &[*self], 1, current_page_table(), 0)
 	}
 
 	fn unmap(&mut self, amount: usize) -> bool {
@@ -119,10 +116,11 @@ impl Mapped for MappingInfo<'_> {
 	}
 
 	fn mapped_at<T: ?Sized>(&mut self, addr_space: u64, amount: usize) -> Option<*mut T> {
-		Self::mapped_to_page_table(addr_space, amount, [self.address], 1, self.page_table, self.flags as u64)
+		Self::mapped_to_page_table(addr_space, amount, self.addresses, self.address_amount, self.page_table, self.flags as u64)
 	}
 	fn unmap(&mut self, amount: usize) -> bool {
-		self.page_table.lock().unmap(self.address, amount)
+		assert!(self.address_amount == 1, "Unsupported.");
+		self.page_table.lock().unmap(self.addresses[0], amount)
 	}
 }
 

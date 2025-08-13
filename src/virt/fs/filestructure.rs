@@ -1,6 +1,7 @@
 use crate::std::{
 	Box,
-	String
+	String,
+	Vec
 };
 use super::FSError;
 
@@ -31,31 +32,11 @@ impl FilePath {
 	}
 	pub const fn new_dos(path: String) -> FilePath {
 		FilePath::DOS(path)
-	}/*
-	pub fn force_dos(&self) -> Option<FilePath> {
-		Some(
-			FilePath::new_dos(
-				match self {
-					FilePath::Unix(path) => Self::unix_to_dos(path)?,
-					FilePath::DOS(path) => path.clone()
-				}
-			)
-		)
 	}
-
-	fn unix_to_dos(unix_path: &String) -> Option<String> {
-		let mut pathsegments: Vec<String> = unix_path.split('/');
-		pathsegments[0] = "".into();
-		for p in &pathsegments {
-			if p.len() > 12 {
-				crate::std::log::info!("{}", pathsegments.len());
-				return None;
-			}
+	pub fn segments(&self) -> Vec<String> {
+		match self {
+			FilePath::DOS(s) => (String::from("/") + s.clone()).split('/'),
+			FilePath::Unix(s) => s.split('/')
 		}
-
-
-		Some(
-			String::from("/").join(pathsegments.into_iter())
-		)
-	}*/
+	}
 }

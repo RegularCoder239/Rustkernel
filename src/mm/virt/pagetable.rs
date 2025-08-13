@@ -52,7 +52,7 @@ impl PageTable {
 		table
 	}
 	pub fn new_boxed() -> Box<Mutex<PageTable>> {
-		let mut table = Box::<Mutex<PageTable>>::new(Mutex::new(PageTable::EMPTY));
+		let table = Box::<Mutex<PageTable>>::new(Mutex::new(PageTable::EMPTY));
 		table.lock().init();
 		table
 	}
@@ -150,7 +150,7 @@ impl PageTable {
 		log::error!("Attempt to gather physical address of invalid virtual address: {:x}", virtual_address_cpy);
 		return None;
 	}
-	pub fn mapped_at<X: Index<usize, Output = u64>>(&mut self, addr_space: u64, phys_addresses: X, phys_addresses_amount: usize, mut size: usize, flags: u64) -> Result<u64, PagingError> {
+	pub fn mapped_at<X: Index<usize, Output = u64> + ?Sized>(&mut self, addr_space: u64, phys_addresses: &X, phys_addresses_amount: usize, mut size: usize, flags: u64) -> Result<u64, PagingError> {
 
 		assert!(self.initalized, "Attempt to map in uninitalized page table.");
 		if size < 0x1000 {
@@ -189,8 +189,7 @@ impl PageTable {
 	}
 
 	pub fn map(&mut self, virt_addr: u64, phys_addr: u64, amount: usize, flags: u64) -> bool {
-
-		for offset in virt_addr_iterator(phys_addr, amount) {
+		for _ in virt_addr_iterator(phys_addr, amount) {
 			if !self.map_page(virt_addr + 0,
 							  phys_addr + 0,
 							  amount,
@@ -217,12 +216,10 @@ impl PageTable {
 		self.temporary_directories.lock()[2 - (size_as_page_level(size)) as usize][1].set_addr(phys_addr, size);
 		PageTable::flush();
 		unsafe {
-			((TEMPORARY_ADDRESS_SPACE + size as u64) as *mut T).as_mut().unwrap()
+			((TEMPORARY_ADDRESS_SPACE + size as u64) as *mut T).as_mut().expect("Temporary address calculation failed.")
 		}
 	}
 }
-
-unsafe impl Sync for PageTable {}
 
 const fn page_level_as_size(level: u64) -> usize {
 	(1 << (level * 9)) * 0x1000

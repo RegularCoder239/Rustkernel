@@ -1,17 +1,16 @@
 use super::{
-	lock::Lock,
-	super::MutableCell
+	lock::Lock
 };
 use core::ops::{
 	Deref,
 	DerefMut
 };
+use core::cell::UnsafeCell;
 
-#[derive(Clone)]
 pub struct Mutex<T> {
 	lock: Lock,
 	rdlock: Lock,
-	content: MutableCell<T>
+	content: UnsafeCell<T>
 }
 
 pub struct MutexGuard<'a, T> {
@@ -26,14 +25,14 @@ impl<T> Mutex<T> {
 		Mutex {
 			lock: Lock::new(),
 			rdlock: Lock::new(),
-			content: MutableCell::new(value)
+			content: UnsafeCell::new(value)
 		}
 	}
 	pub const fn new_rdfused(value: T) -> Mutex<T> {
 		Mutex {
 			lock: Lock::new(),
 			rdlock: Lock::new_locked(),
-			content: MutableCell::new(value)
+			content: UnsafeCell::new(value)
 		}
 	}
 
@@ -64,7 +63,9 @@ impl<T> Mutex<T> {
 	}
 
 	fn get(&self) -> &mut T {
-		self.content.deref_mut()
+		unsafe {
+			&mut *self.content.get()
+		}
 	}
 }
 

@@ -15,8 +15,8 @@ unsafe extern "sysv64" {
 }
 
 pub fn load_smp_code() {
+	let init_meth_ptr = smp_init as *const u8;
 	unsafe {
-		let init_meth_ptr = smp_init as *const u8;
 		core::ptr::copy_nonoverlapping(init_meth_ptr, 0x8000_u64.mapped_global(0x1000).unwrap(), 0x3ff);
 	}
 }
@@ -32,7 +32,6 @@ pub fn smp_core_meth() -> ! {
 
 fn smp_core_setup() -> ! {
 	crate::kernel::per_core_setup();
-	std::sti();
 
 	loop {
 		std::r#yield();

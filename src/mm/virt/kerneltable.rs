@@ -37,9 +37,11 @@ static KERNEL_TABLE: Mutex<KernelTable> = Mutex::new(
 );
 static CURRENT_KERNEL_OFFSET: PerCpu<u64> = PerCpu::new(0x0);
 static LEGACY_ENABLED: Mutex<bool> = Mutex::new(true);
+static LEGACY_KERNEL_REGION: Mutex<(u64, u64)> = Mutex::new((0, 0));
 
 impl KernelTable {
 	pub fn setup_mapped(&mut self, kernel_region: (u64, u64)) {
+		*LEGACY_KERNEL_REGION.lock() = kernel_region;
 		let aligned_kernel_region = (
 			kernel_region.0 - (kernel_region.0 % 0x200000),
 			kernel_region.1 + (0x200000 - (kernel_region.1 % 0x200000))
@@ -88,10 +90,11 @@ pub fn setup(kernel_region: (u64, u64)) {
 }
 
 pub fn setup_kernel_offset() {
+	crate::log::info!("Enabling higher kernel with offset {:x}", KERNEL_TABLE.lock().kernel_offset);
 	*CURRENT_KERNEL_OFFSET.deref_mut() = KERNEL_TABLE.lock().kernel_offset;
 
 	//*LEGACY_ENABLED.lock() = false;
-	//super::current_page_table().directory[KERNEL_TABLE.lock().legacy_table_l4_idx] = crate::mm::PageTableEntry::EMPTY;
+	//super::current_page_table().lock().directory[KERNEL_TABLE.lock().legacy_table_l4_idx] = crate::mm::PageTableEntry::EMPTY;
 }
 
 pub fn kernel_offset() -> u64 {
@@ -100,4 +103,9 @@ pub fn kernel_offset() -> u64 {
 
 pub fn map_pagetable(page_table: &mut PageTable) {
 	KERNEL_TABLE.lock().map_to_pagetable(page_table)
+}
+
+pub fn is_legacy_address(addr: u64) -> bool {
+	let addr_space = *LEGACY_KERNEL_REGION.lock();
+	!*LEGACY_ENABLED.lock() && addr_space.0 <= addr && addr_space.1 >= addr
 }

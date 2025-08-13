@@ -33,14 +33,12 @@ impl<T> LazyMutex<T> {
 	}
 
 	pub fn is_initalized(&self) -> bool {
-		unsafe {
-			(*self.inner.get()).is_initalized()
-		}
+		self.get().is_initalized()
 	}
 
-	fn get(&self) -> &'static mut T {
+	fn get(&self) -> &mut LazyBox<T> {
 		unsafe {
-			(&mut *self.inner.get()).get_mut()
+			&mut *self.inner.get()
 		}
 	}
 }
@@ -58,14 +56,14 @@ impl<'mutex, T> LazyMutexGuard<'mutex, LazyBox<T>> {
 impl<'mutex, T: 'static> Deref for LazyMutexGuard<'mutex, T> {
 	type Target = T;
 
-	fn deref(&self) -> &'mutex T {
-		self.mutex.get()
+	fn deref(&self) -> &T {
+		self.mutex.get().get()
 	}
 }
 
 impl<'mutex, T: 'static> DerefMut for LazyMutexGuard<'mutex, T> {
 	fn deref_mut(&mut self) -> &'mutex mut T {
-		self.mutex.get()
+		self.mutex.get().get_mut()
 	}
 }
 

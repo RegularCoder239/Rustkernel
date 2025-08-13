@@ -3,13 +3,11 @@ use crate::kernel::{
 	Process
 };
 use crate::std::{
-	Box,
 	self,
 	BasicAllocator,
 	PhysicalRAMAllocator,
 	PageTableMapper,
-	Allocator,
-	Mutex
+	Allocator
 };
 use crate::mm::{
 	MappingInfo,
@@ -36,11 +34,6 @@ pub fn load_elf(data: &[u8]) -> bool {
 			if entry.ph_type() != ProgramType::LOAD {
 				continue;
 			}
-			// let mut content = Box::<[u8]>::new_sized(entry.memsz() as usize + 0x3000 - (entry.memsz() % 0x1000) as usize);
-			// let padding = entry.vaddr() as usize & 0xfff;
-			// for idx in 0.. as usize {
-			// 	content[idx + padding] = data[idx + entry.offset() as usize];
-			// }
 			let mut flags = 0x4;
 			if !entry.flags().contains(elf_rs::ProgramHeaderFlags::EXECUTE) {
 				flags |= 0x8000000000000000;
@@ -58,7 +51,8 @@ pub fn load_elf(data: &[u8]) -> bool {
 			PageTableMapper(
 				MappingInfo {
 					page_table: &process.page_table,
-					address: 0,
+					addresses: &[],
+					address_amount: 0,
 					flags: MappingFlags::User
 				}
 			)

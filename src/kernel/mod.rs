@@ -7,8 +7,7 @@ mod syscall;
 use crate::std::{
 	Lock,
 	self,
-	log,
-	VecBase
+	log
 };
 
 static INITALIZATION_LOCK: Lock = Lock::new_locked();
@@ -17,7 +16,6 @@ pub use scheduler::{
 	r#yield,
 	exit_current_process,
 	current_process,
-	current_task_state,
 	Process,
 	ProcessPrivilage,
 	ProcessFlags

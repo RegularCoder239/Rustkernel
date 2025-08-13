@@ -219,13 +219,11 @@ pub fn allocate_aligned(size: usize) -> Option<u64> {
 	let mut buddies = BUDDIES_MUTEX.lock();
 	let _1g_buddy: &mut Buddy1G = buddies.find_non_full()?;
 
-	let allocation = match size {
+	match size {
 		0x1000 => _1g_buddy.allocate_4k(),
 		0x200000 => _1g_buddy.allocate_2m(),
 		_ => None // Unknown allocation size.
-	};
-	crate::std::log::info!("Allocation: {:x?}", allocation);
-	allocation
+	}
 }
 
 pub fn allocate(size: usize) -> Option<BuddyAllocation> {
@@ -241,7 +239,6 @@ pub fn free(addr: u64, mut size: usize) -> bool {
 	if size < 0x1000 {
 		size = 0x1000;
 	}
-
 	if size < 0x1000 {
 		return false;
 	}
@@ -287,7 +284,7 @@ pub fn add_regions(mut addr: u64, mut size: usize) {
 }
 
 pub fn add_memory_map(memory_map: &MemoryMapOwned) {
-	for entry in memory_map.entries().filter(|&d| d.ty == MemoryType::CONVENTIONAL && d.phys_start < 0x30000000) {
+	for entry in memory_map.entries().filter(|&d| d.ty == MemoryType::CONVENTIONAL) {
 		crate::log::info!("RAM: Physical addr: {:x} Amount: {:x}", entry.phys_start, entry.page_count as usize * uefi::boot::PAGE_SIZE);
 		add_regions(entry.phys_start, entry.page_count as usize * uefi::boot::PAGE_SIZE);
 	}

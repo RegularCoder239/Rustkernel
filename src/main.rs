@@ -30,7 +30,6 @@ use std::Mutex;
 use crate::kernel::scheduler::{
 	Process
 };
-use core::fmt::Write;
 use std::log;
 use core::arch::x86_64::__cpuid;
 
@@ -109,6 +108,10 @@ macro_rules! uefi_result {
 #[panic_handler]
 fn panic(i: &PanicInfo<'_>) -> ! {
 	//crate::hw::power::shutdown();
+	unsafe {
+		let array: [u64; 2] = [0, 0];
+		asm!("lidt [{0}]", in(reg) array.as_ptr());
+	}
 	log::error!("{} Unrecovable kernel panic. Please turn off the pc.", i);
 
 	if lapic!("lazybox").is_initalized() {

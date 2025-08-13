@@ -25,10 +25,7 @@ pub use kerneltable::{
 };
 
 use crate::std::{
-	PerCpuLazy,
 	PerCpu,
-	SharedRef,
-	Box,
 	Mutex
 };
 
