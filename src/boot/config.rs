@@ -6,6 +6,10 @@ use uefi::{
 	table::cfg::ConfigTableEntry
 };
 
+/*
+ * Wrapper of UEFI Configuration table.
+ * Use to get physical address of the RSDP.
+ */
 pub struct UEFIConfig {
 	pub acpi: u64
 }
@@ -26,6 +30,10 @@ impl UEFIConfig {
 	}
 }
 
+/*
+ * Get entry of the configuration table.
+ * Warning: Panics if searching fails.
+ */
 fn get_entry(entries: &[ConfigTableEntry], what: Guid) -> u64 {
 	entries
 		.into_iter()

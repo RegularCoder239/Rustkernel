@@ -22,6 +22,10 @@ use crate::std::{
 	self
 };
 
+/*
+ * Sets up current cores GDT, IDT, LAPIC and
+ * a MSR for syscalls activation.
+ */
 pub fn setup_core() {
 	gdt::per_core_setup();
 
@@ -33,6 +37,11 @@ pub fn setup_core() {
 	syscall::setup();
 }
 
+/*
+ * Sets up current core and
+ * core-independent CPU features like
+ * the IOAPIC.
+ */
 pub fn setup1() {
 	log::info!("Setting up CPU.");
 
@@ -40,11 +49,11 @@ pub fn setup1() {
 	IOAPIC::activate();
 }
 
-pub fn setup2() {
-	log::info!("Setting up GS.");
-	gs::init();
-}
-
+/*
+ * Boots up nonboot cores.
+ * Never call this method twice or
+ * from a nonboot core.
+ */
 pub fn awake_non_boot_cpus() {
 	log::info!("Booting non-boot CPUS.");
 	smp::load_smp_code();

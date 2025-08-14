@@ -14,6 +14,10 @@ unsafe extern "sysv64" {
 	fn smp_init();
 }
 
+/*
+ * Loads the smp boot code to physical address 0x8000, because
+ * the x86_64 core starts in real mode.
+ */
 pub fn load_smp_code() {
 	let init_meth_ptr = smp_init as *const u8;
 	unsafe {
@@ -21,11 +25,16 @@ pub fn load_smp_code() {
 	}
 }
 
+/*
+ * Called after 64 bit long mode jump of the nonboot core.
+ * Just sets up the memory manager, core and spawns a init process.
+ */
 #[unsafe(no_mangle)]
 pub fn smp_core_meth() -> ! {
 	std::log::info!("Booting non-boot cpu");
 
 	mm::per_core_setup();
+	hw::cpu::setup_core();
 
 	Process::spawn_init_process(smp_core_setup as fn() -> !)
 }

@@ -1,0 +1,74 @@
+# BOOTSTAGES
+
+## Boot stages (Diagram)
+┌──────────────────────────────────────────────┐
+│ main                                         │
+│                                              │
+│ 1. Gather memory map and display framebuffer │
+│ 2. Exit boot services (UEFI)                 │
+│ 3. Initializes the memorymanager             │
+│ 4. remaps the GDT and IDT on the boot core 0 │
+│ 5. spawns a init task.                       │
+└──────────────────────────────────────────────┘
+The init task calls boot_core_setup
+┌──────────────────────────────────────────────┐
+│ boot_core_setup                              │
+│                                              │
+│ 1. Setups up the boot core GS                │
+│ 2. Spawns all boot tasks                     │
+│ 3. Awakes nonboot cpus                       │
+│ 3. Yields to one of the boot tasks           │
+└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐ ┌─────────────────────────────────────────────────┐
+│ Random Boot task, can be setting up display, │ │ smp_init (Only on non boot cores)               │
+│ Random Boot task, can be setting up display, │ │                                                 │
+│ init NVME, scanning PCI ports, ...           │ │ 1. Setups all control registers of current core │
+└──────────────────────────────────────────────┘ │ 2. Jumps to a boot task                         │
+                                                 └─────────────────────────────────────────────────┘
+                                                 
+
+A init task is a method, that will setup some stuff before
+jumping to a boot task, because some features shouldn´t be
+activated in main or smp_init due to debugging reasons,
+because in main the UEFI still has some control, which
+virtual address is choosen for the kernel for example
+0x3d323d23, instead of the higher virtual address
+0xffff800000000000, which is used for debugging.
+
+A boot task is a method, that initializes some components
+of the OS, drivers or hardware. All boot tasks are executed
+in parallel with the exception, that some boot tasks may 
+depend on other boot tasks to be finished, which results in
+waiting.
+
+## Boot tasks
+### acpi::setup
+Searches ACPI RSDP and maps the MCFG and MADT tables with
+the help of the acpi crate. These tables are used for PCI-
+Express and the uncached core amount method.
+### pci::scan (Requires acpi::setup)
+Scans all PCI-Express root windows. A root window is gathered
+from the MCFG table. If a valid device is found, the header
+of the device will be passed to the specific driver for the
+device, for example a NVME drive will be passed to the NVME
+driver. The driver only adds the physical address of the device
+to a list. A unknown device will be ignored.
+### pci::setup (Requires pci::scan) (Deprecated)
+Sets up ethernet devices. Dont ask why.
+### traits::disk::setup_disks (Requires pci::scan)
+All disk devices will be completly setup for reading sectors.
+Currently the OS only support NVME SSDs. The NVME SSD driver
+will assign new admin completion and submission queues to
+the NVME drive, reset the controller. IO-Queues are only
+created, if the OS wants to do an IO-operation, but no IO-
+Queues are avaiable or all are currently in use.
+### kernel::spawn_init (Requires traits::disks::setup_disks)
+The kernel mounts every disk to search for the file at path
+/init, if files were found, they will be executed as init
+executables. If no files were found or no filesystems could
+be mounted, a kernel panic will appear.
+### kernel::graphicmanager::setup_console_task
+The display will be generated with a console layer at z 0.
+This console layer will be used for logs, so it will be one
+of the first boot tasks, that will be executed. The framebuffer
+is gathered from UEFI.

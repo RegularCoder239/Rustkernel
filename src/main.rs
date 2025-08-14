@@ -35,6 +35,9 @@ use core::arch::x86_64::__cpuid;
 
 static UEFI_RESULT: Mutex<Option<UEFIResult>> = Mutex::new(None);
 
+/*
+ * Get get physical address range, which the kernel is mapped by UEFI using the memorymap.
+ */
 fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 	let descriptors = memory_map.entries().filter(|&desc| desc.ty == MemoryType::LOADER_CODE ||
 														  desc.ty == MemoryType::LOADER_DATA ||
@@ -48,12 +51,21 @@ fn get_kernel_space(memory_map: &MemoryMapOwned) -> Option<(u64, u64)> {
 	))
 }
 
+/*
+ * Entry point of UEFI application.
+ * Checks for the required CPU features,
+ * Gathers memory map and initalizes the memory manager
+ * with the memory map. Then the CPUs GDT, IDT, CR0 and CR4 will be overriden.
+ * And finally it spawns a init task.
+ */
 #[entry]
 fn main() -> Status {
 	uefi::helpers::init().unwrap();
 	log::info!("Welcome to the kernel.");
 
-	let (uefi_result, memory_map) = boot::boot_sequence().expect("No memory map given.");
+	let (uefi_result, memory_map) = unsafe {
+		boot::boot_sequence()
+	};
 	unsafe {
 		let cpuid_features = __cpuid(0x1);
 		if cpuid_features.edx & 0x2000269 != 0x2000269 {
@@ -64,6 +76,8 @@ fn main() -> Status {
 			panic!("Requires a CPU with the wrgsbase instruction.");
 		}
 
+		// Used to override IDT to triple fault in case of faulting in memory manager setup.
+		// Deprecated: Will be removed in the future.
 		let idtr = [0_u64, 0];
 		core::arch::asm!("push 0x2",
 						 "popf",
@@ -83,18 +97,22 @@ fn main() -> Status {
 	Process::spawn_init_process(boot_core_setup as fn() -> !)
 }
 
+/*
+ * Sets up features of the boot core, that requires debugging and
+ * yields to a boot task.
+ */
 fn boot_core_setup() -> ! {
 	log::debug!("Boot process successfully started.");
 	std::cli();
 	std::wrmsr(0xc0000080, 0xd01);
 
 	kernel::boot_core_setup();
-	hw::cpu::setup2();
+	hw::cpu::gs::init();
 	hw::cpu::awake_non_boot_cpus();
 	std::sti();
 
 	loop {
-		kernel::r#yield();
+		std::r#yield();
 	}
 }
 
@@ -105,10 +123,15 @@ macro_rules! uefi_result {
 	}
 }
 
+/*
+ * Disables all other cores, prints panic information and
+ * halts forever!!
+ */
 #[panic_handler]
 fn panic(i: &PanicInfo<'_>) -> ! {
 	//crate::hw::power::shutdown();
 	unsafe {
+		// Triple fault, if panicing throws an exception.
 		let array: [u64; 2] = [0, 0];
 		asm!("lidt [{0}]", in(reg) array.as_ptr());
 	}

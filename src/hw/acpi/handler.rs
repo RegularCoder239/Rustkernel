@@ -6,9 +6,12 @@ use acpi::{
 use core::ptr::NonNull;
 use crate::mm::Mapped;
 
-#[derive(Clone)]
-pub struct AcpiMemoryHandler {
-}
+/*
+ * Just a struct, that implements the AcpiHandler trait,
+ * which maps and unmaps physical regions.
+ */
+#[derive(Copy, Clone)]
+pub struct AcpiMemoryHandler {}
 
 impl AcpiHandler for AcpiMemoryHandler {
 	unsafe fn map_physical_region<T>(&self, phys_addr: usize, size: usize) -> PhysicalMapping<Self, T> {

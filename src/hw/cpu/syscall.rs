@@ -26,13 +26,16 @@ fn finish_functionality_list() {
 	FUNCIONALITIES.lock().sort(|a, b| a.id < b.id)
 }
 
+/*
+ * Sets up nececary MSRs for syscalls.
+ */
 pub fn setup() {
 	wrmsr(0xc0000082, __do_syscall as u64 + crate::mm::kernel_offset()); // LSTAR
 	wrmsr(0xc0000081, 0x8 << 32 | 0x1b << 48);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "sysv64" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) -> u64 {
+extern "sysv64" fn do_syscall(function: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64, arg6: u64) -> u64 {
 	let lock = FUNCIONALITIES.lock();
 	if let Some(f) = lock.into_iter().find(|a| a.id == function) {
 		let addr = crate::mm::kernel_offset() + f.meth as *const () as u64;
@@ -46,6 +49,9 @@ pub unsafe extern "sysv64" fn do_syscall(function: u64, arg1: u64, arg2: u64, ar
 	}
 }
 
+/*
+ * This method should not be called.
+ */
 #[unsafe(naked)]
 pub extern "sysv64" fn __do_syscall() {
 	naked_asm!("swapgs",

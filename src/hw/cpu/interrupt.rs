@@ -210,15 +210,16 @@ impl IDT {
 	fn connect_handler(&mut self, idx: usize, method: Handler) {
 		self.descriptors[idx] = InterruptDescriptor::from_method(method);
 	}
-	fn set_ist(&mut self, idx: usize, ist: u8) {
-		self.descriptors[idx].ist = ist;
-	}
 }
 
 pub fn current_idt() -> &'static mut IDT {
 	IDTS.deref_mut()
 }
 
+/*
+ * index contains the IDT vector, that will be connected
+ * to the signal.
+ */
 pub fn connect_signal(index: usize, meth: SignalMethod) {
 	let mut lock = INTERRUPT_CONNECTION_METHS.lock();
 	if lock.len() == 0 {
@@ -231,11 +232,18 @@ pub fn connect_signal(index: usize, meth: SignalMethod) {
 	lock[index].push_back(meth);
 }
 
+/*
+ * Adds an exception handler.
+ * The methods will be called after an expcetion.
+ * A panic will happen if no exception handlers are
+ * added and a exception happens or a exception happens
+ * in a exception handler.
+ */
 pub fn connect_exception(meth: ExceptionMethod) {
 	EXCEPTION_CONNECTION_METHS.lock().push_back(meth);
 }
 
-pub fn handle_interrupt(vector: u8) {
+fn handle_interrupt(vector: u8) {
 	let methods = &INTERRUPT_CONNECTION_METHS.lock()[vector as usize];
 	for method in methods.into_iter() {
 		method(vector);
@@ -243,11 +251,7 @@ pub fn handle_interrupt(vector: u8) {
 	lapic::LAPIC::end_of_interrupt();
 }
 
-pub fn handle_exception(vector: u8, frame: &mut InterruptFrame, err_code: u64) {
-	if vector == 0xe && err_code & 0x10 != 0 {
-		frame.rip += crate::mm::kernel_offset();
-		return;
-	}
+fn handle_exception(vector: u8, frame: &mut InterruptFrame, err_code: u64) {
 	let exception_meths = EXCEPTION_CONNECTION_METHS.try_lock();
 	if let Some(methods) = exception_meths.as_ref() {
 		if methods.deref().len() == 0 {

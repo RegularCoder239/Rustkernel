@@ -1,3 +1,6 @@
+/*
+ * CPUS GDT implementation
+ */
 use crate::{
 	asm
 };
@@ -7,6 +10,10 @@ use crate::std::{
 	Allocator
 };
 
+/*
+ * Raw GDT entry
+ */
+#[repr(C, packed)]
 #[derive(Clone, Copy)]
 struct GlobalDescriptor {
 	limit_low: u16,
@@ -17,6 +24,9 @@ struct GlobalDescriptor {
 	base_high: u8
 }
 
+/*
+ * Raw TSS
+ */
 #[derive(Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct TSS {
@@ -29,6 +39,11 @@ pub struct TSS {
 	iopb: u16
 }
 
+/*
+ * This structure contains a GDT, TSS and a exception stack.
+ * It´s used in a static percpu to manage all GDTs across all
+ * cores.
+ */
 #[derive(Copy, Clone)]
 pub struct GDT {
 	gdt: [GlobalDescriptor; 0x10],
@@ -36,6 +51,9 @@ pub struct GDT {
 	exception_stack: *mut u8
 }
 
+/*
+ * Raw GDTR register value
+ */
 #[repr(C, packed)]
 struct GDTR {
 	limit: u16,
@@ -63,6 +81,9 @@ impl GlobalDescriptor {
 		flags: 0x20,
 		..Self::EMPTY
 	};
+	/*
+	 * Ring 3
+	 */
 	const USER_CODE_SEG: GlobalDescriptor = GlobalDescriptor {
 		access_byte: 0xf8,
 		flags: 0x20,
@@ -74,6 +95,12 @@ impl GlobalDescriptor {
 		..Self::EMPTY
 	};
 
+	/*
+	 * Create a 64 bit long mode system descriptor pointing to the
+	 * TSS stored in tss.
+	 * Warning: If TSS goes out of scope, while the descriptors are
+	 * still being set, serious problems will occur.
+	 */
 	fn new_long_tss(tss: &TSS) -> (GlobalDescriptor, GlobalDescriptor) {
 		let raw_addr = tss as *const TSS as u64 + crate::mm::kernel_offset();
 		(
@@ -101,6 +128,12 @@ impl GDT {
 	pub const EMPTY_SEG: u16 = 0x0;
 	pub const CODE_SEG: u16 = 0x8;
 	pub const DATA_SEG: u16 = 0x10;
+	/*
+	 * The returned GDT will contain a kernel code segment,
+	 * kernel data segment, user code segment, user data
+	 * segment and a tss segment. The exception stack is
+	 * still uninitalized.
+	 */
 	pub const fn new() -> GDT {
 		GDT {
 			gdt: [
@@ -126,6 +159,13 @@ impl GDT {
 		}
 	}
 
+	/*
+	 * Before loading the GDT, call this method for setting up
+	 * the tss by setting the exception stack to the IST1 RSP.
+	 * This results in using the exception stack in case of
+	 * exceptions instead of some other stack to avoid triple
+	 * faults when the RSP points to some unmapped page.
+	 */
 	fn setup_tss(&mut self) {
 		(self.gdt[5], self.gdt[6]) = GlobalDescriptor::new_long_tss(&self.tss);
 		self.exception_stack = RAMAllocator::default().allocate(0x5000).unwrap();
@@ -137,6 +177,12 @@ impl GDT {
 		}
 	}
 
+	/*
+	 * Loads the GDT. Calling this method requires the
+	 * memory manager for the exception stack. Call this
+	 * method before loading the IDTs, because the UEFIs
+	 * GDT won´t be relaiable.
+	 */
 	fn load(&self) {
 		let gdtr = GDTR {
 			limit: 0x80,
@@ -174,6 +220,9 @@ impl TSS {
 	};
 }
 
+/*
+ * Sets up a GDT with TSS on the current core.
+ */
 pub fn per_core_setup() {
 	let gdt = GDTS.deref_mut();
 	gdt.load();

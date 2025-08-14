@@ -17,6 +17,9 @@ struct LAPICRegister {
 	padding: [u32; 3]
 }
 
+/*
+ * Memory mapped LAPIC.
+ */
 #[repr(C, align(0x10))]
 pub struct LAPIC {
 	reserved: [LAPICRegister; 2],
@@ -41,6 +44,9 @@ pub struct LAPIC {
 	command_register_2: LAPICRegister
 }
 
+/*
+ * Memory mapped IOAPIC.
+ */
 pub struct IOAPIC {
 	register_address: u32,
 	reserved: [u32; 3],
@@ -55,12 +61,19 @@ pub static IOAPIC: LazyMutex<Box<IOAPIC>> = LazyMutex::new(
 );
 
 impl LAPIC {
-	// DANGER: Will reset every cpu except the current one.
+	/*
+	 * Will reset every cpu except the current one.
+	 * This causes a reboot if this method is called on a
+	 * nonboot cpu.
+	 */
 	pub fn init_non_boot_cpus(startup_addr: u32) {
 		let mut l = LAPICS.lock();
 		l.send_command(0xc4500, 0x0);
 		l.send_command(0xc0600 + (startup_addr / 0x1000), 0x0);
 	}
+	/*
+	 * Halts every cpu core except the current one.
+	 */
 	pub fn poweroff_other_cpus(&mut self) {
 		self.send_command(0xc8500, 0x0);
 	}
@@ -88,6 +101,9 @@ impl LAPIC {
 }
 
 impl IOAPIC {
+	/*
+	 * Rewrites the IOAPIC for recieving hardware interrupts.
+	 */
 	pub fn activate() {
 		let mut lock = IOAPIC.lock();
 		for idx in 0..0x10 {
@@ -124,6 +140,7 @@ macro_rules! lapic {
 	() => {
 		lapic!("lazybox").lock()
 	};
+	// Contains the Lazymutex of the LAPIC. Used in panic handler for checking.
 	("lazybox") => {
 		crate::hw::cpu::lapic::LAPICS
 	}

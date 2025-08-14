@@ -228,24 +228,6 @@ impl Process {
 		self.task_state.rflags &= !0x200;
 		self
 	}
-
-	/*pub fn switch(&'static mut self) {
-		if let Some(current_process) = current_process() {
-			let mut current_process_lock = current_process.lock();
-			if current_process_lock.state == ProcessState::RUNNING {
-				current_process_lock.state = ProcessState::IDLE;
-			}
-		}
-		self.state = ProcessState::RUNNING;
-		PID_PER_CPU.set(self.pid);
-		self.page_table.load();
-
-		crate::mm::set_current_page_table(&self.page_table);
-		cpu::lapic::LAPIC::end_of_interrupt();
-
-		self.task_state.load()
-	}*/
-
 	fn switch_init(&mut self) -> ! {
 		self.state = ProcessState::RUNNING;
 		PID_PER_CPU.set(self.pid);

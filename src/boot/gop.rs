@@ -6,6 +6,10 @@ use uefi::proto::console::gop::{
 };
 use uefi::boot;
 
+/*
+ * Wrapper for the GOP of UEFI.
+ * Used to gather framebuffer information.
+ */
 pub struct GOP {
 	protocol: ScopedProtocol<GraphicsOutput>,
 	mode: Mode
@@ -39,6 +43,10 @@ impl GOP {
 	}
 }
 
+/*
+ * Get amount of total pixels of GOPmode.
+ * It´s calculated by multiplying the x- and y-resolution.
+ */
 fn pixel_amount(mode: &ModeInfo) -> usize {
 	let (resx, resy) = mode.resolution();
 	if resx as f64 / resy as f64 == 16.0 / 9.0 {

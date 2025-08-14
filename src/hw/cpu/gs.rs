@@ -2,7 +2,8 @@ use crate::std::{
 	Box,
 	Vec,
 	Mutex,
-	current_core_uncached
+	current_core_uncached,
+	log
 };
 use core::{
 	arch::asm
@@ -16,6 +17,9 @@ pub struct GSContentRaw {
 	pub signature: u64
 }
 
+/*
+ * This struct manages the GS completely.
+ */
 pub struct GSContent {
 	pub syscall_stack: Box<[u8]>,
 	pub raw: GSContentRaw
@@ -58,7 +62,11 @@ impl Default for GSContent {
 	}
 }
 
+/*
+ * Initalizes the gs.
+ */
 pub fn init() {
+	log::info!("Setting up GS.");
 	let base = core::ptr::addr_of!(
 		GS_CONTENTS.lock().push_back(GSContent::default()).raw
 	) as u64;
@@ -70,6 +78,12 @@ pub fn init() {
 	}
 }
 
+/*
+ * Returns the current LAPIC core id.
+ * This method will fail, when the gs
+ * hasn´t been set up. Use then
+ * the slower cpuid method.
+ */
 pub fn current_core() -> Option<u64> {
 	gs_read!(core_idx, u64)
 }
