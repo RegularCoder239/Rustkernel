@@ -12,18 +12,32 @@ use crate::std::{
 };
 
 const SYSCALL_METHODS: [Function; 5] = [
+	/*
+	 * Exits current process
+	 * TODO: Status code support
+	 */
 	Function {
 		id: 0xa4998996a6277317,
 		meth: |_| crate::std::exit()
 	},
+	/*
+	 * Powers off the PC.
+	 */
 	Function {
 		id: 0x4a33e7eb45595ceb,
 		meth: |_| crate::hw::power::shutdown()
 	},
+	/*
+	 * Reboots the pc
+	 */
 	Function {
 		id: 0xba3f7ec4fdf5556b,
 		meth: |_| crate::hw::power::reboot()
 	},
+	/*
+	 * Prints text from string pointer (first argument) and
+	 * length (second argument).
+	 */
 	Function {
 		id: 0x588f73f96a7de691,
 		meth: |args| if let Some(decoded_str) = syscallarg_to_string(args[0], args[1]) {
@@ -33,6 +47,10 @@ const SYSCALL_METHODS: [Function; 5] = [
 			0x2
 		}
 	},
+	/*
+	 * Execute elf at DOS Path (string pointer(first argument) and
+	 * length (second argument)).
+	 */
 	Function {
 		id: 0xed24224fa1bde4,
 		meth: |args| if let Some(decoded_str) = syscallarg_to_string(args[1], args[2]) {
@@ -43,6 +61,9 @@ const SYSCALL_METHODS: [Function; 5] = [
 	}
 ];
 
+/*
+ * Add all syscall functions.
+ */
 pub fn setup() {
 	for meth in SYSCALL_METHODS {
 		meth.add();
@@ -52,6 +73,10 @@ pub fn setup() {
 	mem::setup();
 }
 
+/*
+ * Helper method of converting two arguments into
+ * a str pointer
+ */
 pub fn syscallarg_to_string(ptr: u64, size: u64) -> Option<&'static str> {
 	str::from_utf8(
 		unsafe {

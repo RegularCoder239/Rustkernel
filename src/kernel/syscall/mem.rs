@@ -13,12 +13,20 @@ const USER_ALLOCATOR: LazyMutex<CustomRAMAllocator<PageTableMapper>> =
 	LazyMutex::new(|| BasicAllocator::new(PageTableMapper::new(MappingFlags::User)));
 
 const MEM_SYSCALL_METHODS: [Function; 2] = [
+	/*
+	 * Allocates X bytes user memory, where X is the first argument.
+	 * Returns the virtual address of the new memory
+	 */
 	Function {
 		id: 0x5f574e0f2ba82e47,
 		meth: |args| {
 			USER_ALLOCATOR.lock().allocate::<u8>(args[0] as usize).unwrap() as u64
 		}
 	},
+	/*
+	 * Frees user memory. The first argument specifies the virtual
+	 * address and the second one the size of the allocation.
+	 */
 	Function {
 		id: 0x182e8b4510a7eb40,
 		meth: |args| {

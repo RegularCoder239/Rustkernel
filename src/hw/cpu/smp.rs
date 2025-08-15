@@ -6,7 +6,8 @@ use crate::kernel::scheduler::{
 };
 use crate::{
 	std,
-	mm
+	mm,
+	hw::cpu
 };
 
 #[link(name="smp")]
@@ -34,7 +35,7 @@ pub fn smp_core_meth() -> ! {
 	std::log::info!("Booting non-boot cpu");
 
 	mm::per_core_setup();
-	hw::cpu::setup_core();
+	cpu::setup_core();
 
 	Process::spawn_init_process(smp_core_setup as fn() -> !)
 }

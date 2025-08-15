@@ -15,8 +15,14 @@ use crate::std::{
 };
 use crate::mm::Address;
 
+/*
+ * Not used by the nvme driver itself.
+ */
 pub struct NVMEHeaderStruct(HeaderType0);
 
+/*
+ * Raw memory mapped NVME registers
+ */
 #[repr(C, packed)]
 struct NVMERegisters {
 	controller_capabilities: u64,
@@ -31,6 +37,10 @@ struct NVMERegisters {
 	admin_submission_queue: u64,
 	admin_completion_queue: u64
 }
+
+/*
+ * The Queue contains one submission and one completion queue.
+ */
 struct Queue {
 	submission_content: Box<[SubmissionEntry; 0x200]>,
 	pub submission_doorbell_idx: usize,
@@ -38,6 +48,10 @@ struct Queue {
 	pub completion_doorbell_idx: usize,
 	pub id: usize
 }
+/*
+ * Generic struct for a NVME drive.
+ * It shall be used for doing NVME operations.
+ */
 pub struct NVMEDrive {
 	header: NVMEHeader,
 	registers: Box<NVMERegisters>,
@@ -47,6 +61,11 @@ pub struct NVMEDrive {
 	admin_queue: Mutex<Queue>,
 	active_namespaces: Box<[u16; 1024]>
 }
+
+/*
+ * Raw representation of the NVME submission queue entry.
+ * Used to send NVME drive commands.
+ */
 #[repr(C, packed)]
 struct SubmissionEntry {
 	command: u32,
@@ -56,6 +75,11 @@ struct SubmissionEntry {
 	data: [u64; 2],
 	command_specific: [u32; 6],
 }
+
+/*
+ * Raw representation of the NVME completion queue entry
+ * Used to wait for finishing NVME drive commands.
+ */
 #[repr(C, packed)]
 struct CompletionEntry {
 	command_specific: [u32; 2],
@@ -64,6 +88,7 @@ struct CompletionEntry {
 	command_identifier: u16,
 	status: u16
 }
+
 pub type NVMEHeader = Box<NVMEHeaderStruct>;
 
 impl DeviceTrait for NVMEHeader {
@@ -73,6 +98,12 @@ impl DeviceTrait for NVMEHeader {
 }
 
 impl NVMEDrive {
+	/*
+	 * Generates a new NVMe drive struct from the physical address of
+	 * associated PCI Express header.
+	 * Warning: This method doesn´t reset the drive. Reset the drive
+	 * before using it.
+	 */
 	pub fn from_raw_address(header_addr: u64) -> Box<dyn PhysicalDisk> {
 		let header = NVMEHeader::from_raw_address(header_addr);
 		let base_address = ((header.0.bar_addresses[1] as u64) << 32) | (header.0.bar_addresses[0] as u64 & 0xfffffff0);
@@ -93,6 +124,10 @@ impl NVMEDrive {
 		})
 	}
 
+	/*
+	 * Sends new commands from a Queue to the NVME drive. It also
+	 * waits for the commands to be finished in a spin loop.
+	 */
 	fn doorbell(&self, queue: &mut Queue) {
 		self.doorbells.lock()[queue.id * 2 * (4 << self.cap_stride) / 4] = queue.submission_doorbell_idx as u32;
 		let idx = queue.completion_doorbell_idx;
@@ -102,11 +137,21 @@ impl NVMEDrive {
 		queue.completion_doorbell_idx += 1;
 		self.doorbells.lock()[queue.id * 2 * (4 << self.cap_stride) / 4 + 1] = queue.completion_doorbell_idx as u32;
 	}
+
+	/*
+	 * This method also waits for the command to be finished.
+	 */
 	fn send_admin_command(&self, command: SubmissionEntry) {
 		let mut admin_queue = self.admin_queue.lock();
 		admin_queue.send(command);
 		self.doorbell(&mut admin_queue);
 	}
+
+	/*
+	 * This method also waits for the command to be finished.
+	 * A random free io queue will be choosen for sending the
+	 * commands.
+	 */
 	fn send_io_command(&self, command: SubmissionEntry) {
 		let io_queues = self.io_queues.read();
 		let mut queue = if let Some(queue) = io_queues.into_iter().find(|q| !q.is_locked()) {
@@ -118,6 +163,10 @@ impl NVMEDrive {
 		queue.send(command);
 		self.doorbell(&mut queue);
 	}
+
+	/*
+	 * This method returns the new io_queue id.
+	 */
 	fn create_io_queue(&self) -> usize {
 		let mut io_queue_list_lock = self.io_queues.lock();
 		let queue = Queue::new(io_queue_list_lock.len()+1);
@@ -131,6 +180,10 @@ impl NVMEDrive {
 }
 
 impl PhysicalDisk for NVMEDrive {
+	/*
+	 * Resets the controller, sets up admin queues and creates
+	 * an IO queue just in case.
+	 */
 	fn reset(&mut self) {
 		self.registers.nvm_subsystem_reset = 0x4e564d65;
 		self.registers.controller_configuration = 0;
@@ -144,8 +197,15 @@ impl PhysicalDisk for NVMEDrive {
 		self.registers.controller_configuration = 0x460061;
 
 		self.send_admin_command(SubmissionEntry::new_get_active_ns(&self.active_namespaces));
+
+		self.io_queues.lock().clear();
 		self.create_io_queue();
 	}
+
+	/*
+	 * Warning: The sector will contains garbage data, when
+	 * reading fails.
+	 */
 	fn read_lba(&self, lba: usize) -> Sector where Self: Sized {
 		let buffer: Sector = Box::new_uninit();
 		self.send_io_command(SubmissionEntry::new_io_read(
@@ -168,6 +228,11 @@ impl Queue {
 		}
 	}
 
+	/*
+	 * Adds the entry to a free slot on the submission queue.
+	 * Warning: This method doesn´t wait for the command to
+	 * be finished.
+	 */
 	fn send(&mut self, entry: SubmissionEntry) {
 		self.submission_content[self.submission_doorbell_idx] = entry;
 		self.submission_doorbell_idx += 1;
@@ -182,6 +247,10 @@ impl Queue {
 }
 
 impl SubmissionEntry {
+	/*
+	 * Warning: The queue shouldn´t go out of scope before
+	 * sending the command.
+	 */
 	fn new_io_c_queue(queue: &Queue) -> SubmissionEntry {
 		SubmissionEntry {
 			command: 0x5,
@@ -202,6 +271,10 @@ impl SubmissionEntry {
 			]
 		}
 	}
+	/*
+	 * Warning: The queue shouldn´t go out of scope before
+	 * sending the command.
+	 */
 	fn new_io_s_queue(queue: &Queue) -> SubmissionEntry {
 		SubmissionEntry {
 			command: 0x1,

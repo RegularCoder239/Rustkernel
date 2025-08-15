@@ -7,6 +7,10 @@ use super::{
 	current_process
 };
 
+/*
+ * Hint: These exceptions match the interrupt vectors.
+ * For example: Interrupt 0 -> Division by zero error.
+ */
 #[derive(Debug, enum_iterator::Sequence)]
 enum Error {
 	DivisionByZero,
@@ -37,6 +41,9 @@ enum Error {
 	SecurityException
 }
 
+/*
+ * Logs state of crashed process and kills it
+ */
 pub fn handle_exception(vector: u8, frame: cpu::InterruptFrame, error: u64) {
 	let process = current_process().expect("Fatal exception in boot task.").lock();
 	log::error!("Crash! PID:        {}", process.pid);

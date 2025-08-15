@@ -96,6 +96,11 @@ impl<T, A: Allocator> Vec<T, A> {
 	pub fn empty(&self) -> bool {
 		self.len() == 0
 	}
+
+	// FIXME: Fix large memory consumption after clearing.
+	pub fn clear(&mut self) {
+		self.length = 0;
+	}
 }
 
 impl<T, A: Allocator + Default> Vec<T, A> {

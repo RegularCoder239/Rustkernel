@@ -10,11 +10,22 @@ use core::ops::DerefMut;
 pub const SECTOR_SIZE: usize = 512;
 pub type Sector = Box<[u8; SECTOR_SIZE]>;
 
+/*
+ * Every PhysicalDisk implementations should be aware of thread
+ * safety. This means two commands can come in at the same time.
+ */
 pub trait PhysicalDisk {
+	/*
+	 * Resets the harddrive. This shall be called before an other
+	 * method in this trait
+	 */
 	fn reset(&mut self);
 	fn read_lba(&self, lba: usize) -> Sector;
 }
 
+/*
+ * This struct is just a box wrapper of a physical disk with an id.
+ */
 pub struct VirtualDisk {
 	pub physical_disk: Box<dyn PhysicalDisk>,
 	id: u64
@@ -25,6 +36,9 @@ static IDCOUNTER: Mutex<u64> = Mutex::new(0);
 
 unsafe impl Sync for VirtualDisk {}
 
+/*
+ * Helper methods for the disk
+ */
 pub fn add_disk(disk: Box<dyn PhysicalDisk>) {
 	let mut idlock = IDCOUNTER.lock();
 	*idlock += 1;

@@ -30,6 +30,9 @@ use crate::{
 
 static SCAN_LOCK: std::Lock = std::Lock::new_locked();
 
+/*
+ * Scans all PCI express root window.
+ */
 pub fn scan() -> ! {
 	if let Some(entries) = (*acpi_singleton()).pci_mcfg_entries() {
 		log::info!("Scanning for PCI devices.");
@@ -43,11 +46,17 @@ pub fn scan() -> ! {
 	std::exit();
 }
 
+/*
+ * Waits until the pci scan boot task is completed
+ */
 pub fn wait_for_scan() {
 	SCAN_LOCK.lock();
 	SCAN_LOCK.unlock();
 }
 
+/*
+ * Deprecated, will be removed in the future.
+ */
 pub fn setup() -> ! {
 	wait_for_scan();
 	log::info!("Setting up PCI devices.");

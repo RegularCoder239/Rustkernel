@@ -28,6 +28,11 @@ pub enum DeviceEnum {
 	Invalid
 }
 
+/*
+ * The UnspecifiedDevice is a device, that hasn´t been
+ * scanned for the type or anything else. It shall decide,
+ * to which driver the device should be going.
+ */
 pub type UnspecifiedDevice = Box<UnspecifiedDeviceStruct>;
 
 impl UnspecifiedDevice {

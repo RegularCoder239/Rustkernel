@@ -12,6 +12,13 @@ use crate::virt::fs::FilePath;
 use super::syscallarg_to_string;
 
 const FILE_SYSCALL_METHODS: [Function; 1] = [
+	/*
+	 * Reads file from filesystems (1. arg) at path (2. arg).
+	 * Argument 3 specifies the amount of bytes to be read and
+	 * argument 4 is the offset in the file to read.
+	 * It either returns an error, or the buffer, where the data
+	 * is stored.
+	 */
 	Function {
 		id: 0xd418874d2055fe49,
 		meth: |args| {

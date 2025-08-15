@@ -1,6 +1,9 @@
 use crate::std::Box;
 use core::fmt;
 
+/*
+ * Raw representation of a PCI header head
+ */
 #[derive(Clone)]
 #[repr(C, packed)]
 pub struct Header {
@@ -18,6 +21,9 @@ pub struct Header {
 	bist: u8
 }
 
+/*
+ * Raw representation of a PCI header type 0
+ */
 #[repr(C, packed)]
 pub struct HeaderType0 {
 	pub header: Header,

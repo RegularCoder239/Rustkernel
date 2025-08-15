@@ -1,3 +1,7 @@
+/*
+ * Driver for a PCI bridge. It works by iterating
+ * every device and scanning them.
+ */
 use super::{
 	DeviceTrait,
 	UnspecifiedDevice

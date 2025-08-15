@@ -15,6 +15,10 @@ use crate::std::{
 };
 use core::ops::Index;
 
+/*
+ * Framebuffer layer.
+ * The z is used for z-ordering.
+ */
 pub struct Layer {
 	pub z: u8,
 	pub size: (usize, usize),
@@ -25,6 +29,10 @@ pub struct Layer {
 }
 
 static LAYERS: Mutex<Vec<Mutex<Layer>>> = Mutex::new(Vec::new());
+/*
+ * The depth buffer is used to avoid a layer with lower z overriding
+ * pixels, where a higher z layer has placed them.
+ */
 static DEPTH_BUFFER: LazyMutex<Box<[u8]>> = LazyMutex::new(
 	|| Box::new_filled(
 		0,
@@ -36,11 +44,22 @@ static DEPTH_BUFFER: LazyMutex<Box<[u8]>> = LazyMutex::new(
 	)
 );
 
+/*
+ * TODO: Implement checks for OOB access.
+ */
 impl Layer {
+	/*
+	 * Creates new layer. The returned reference is static,
+	 * because the layer never gets freed.
+	 */
 	pub fn add(z: u8) -> &'static Mutex<Self> {
 		LAYERS.lock().push_back(Mutex::new(Self::new(z)));
 		LAYERS.read().index(LAYERS.len() - 1)
 	}
+
+	/*
+	 * The id is stored in Layer::id
+	 */
 	pub fn by_id(id: u64) -> Option<&'static Mutex<Layer>> {
 		LAYERS.read().into_iter().find(|x| x.id == id)
 	}
@@ -66,6 +85,9 @@ impl Layer {
 	pub fn plot_pixel(&mut self, x: usize, y: usize, color: RGBColor) {
 		self.plot_raw_pixel(x, y, color.into());
 	}
+	/*
+	 * Be careful, it doesn´t account the depth buffer
+	 */
 	pub fn fill_global(&mut self, color: RGBColor) {
 		self.framebuffer.fill(color.into());
 	}
@@ -78,5 +100,3 @@ impl Layer {
 		}
 	}
 }
-
-unsafe impl Sync for Layer {}

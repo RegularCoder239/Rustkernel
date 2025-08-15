@@ -1,3 +1,8 @@
+/*
+ * TODO: Seperate process, task state and remainders of the scheduler
+ * TODO: Docs
+ */
+
 use crate::mm::{
 	PageTable
 };

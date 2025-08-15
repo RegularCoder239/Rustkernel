@@ -16,12 +16,31 @@ use core::{
 use rtl8139::RTL8139;
 use crate::virt::net::Mac;
 
+/*
+ * This trait implements commands to a network controller.
+ */
 trait NetworkDeviceTrait {
+	/*
+	 * Early setup method. This method shall be called before
+	 * any other method in this trait.
+	 */
 	fn setup(&mut self);
+
+	/*
+	 * Returns the on the network card stored mac address.
+	 */
 	fn mac(&self) -> Mac;
+
+	/*
+	 * Send layer 2 ethernet frame to the network card.
+	 */
 	fn send_package(&mut self, frame: *mut u8, len: usize);
 }
 
+/*
+ * The enum for specifing the type of network card.
+ * Currently only the RTL8139 is implemented
+ */
 enum Device {
 	RTL8139(Box<RTL8139>),
 	Unknown
@@ -66,6 +85,9 @@ impl fmt::Display for NetworkController {
 }
 
 impl NetworkDevice {
+	/*
+	 * Returns the stored network device.
+	 */
 	fn device(&self) -> &Box<impl NetworkDeviceTrait> {
 		match &self.device {
 			Device::RTL8139(d) => d,
@@ -78,14 +100,24 @@ impl NetworkDevice {
 			_ => panic!("Unknown network device.")
 		}
 	}
+	/*
+	 * Sets up the underlying network device.
+	 */
 	pub fn setup(&mut self) {
 		self.device_mut().setup();
 	}
+
+	/*
+	 * Returns the on the network card stored mac address.
+	 */
 	pub fn mac(&self) -> Mac {
 		self.device().mac()
 	}
 }
 
+/*
+ * Sets up all added network devices for sending packages.
+ */
 pub fn setup_devices() {
 	let mut device_lock = DEVICES.lock();
 	for d in device_lock.deref_mut() {

@@ -1,3 +1,6 @@
+/*
+ * TODO: Window support
+ */
 mod consolelayer;
 mod layer;
 mod font;
@@ -9,11 +12,17 @@ pub use consolelayer::{
 pub use image::Image;
 pub use layer::Layer;
 
+/*
+ * Deprecated
+ */
 pub trait ColorComponent: Copy + Clone {
 	fn from_u8(value: u8) -> Self;
 	fn into_u8(self) -> u8;
 }
 
+/*
+ * Helper struct with rgb colors.
+ */
 #[derive(Copy, Clone)]
 pub struct RGBColor {
 	r: u8,

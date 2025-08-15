@@ -1,9 +1,16 @@
+/*
+ * Driver for the ethernet card RTL8139
+ */
+
 use super::{
 	NetworkDeviceTrait
 };
 use crate::mm::Address;
 use crate::virt::net::Mac;
 
+/*
+ * Raw representation of RTL8139Registers
+ */
 #[repr(C, packed)]
 pub struct RTL8139Registers {
 	mac: Mac,
@@ -24,6 +31,10 @@ pub struct RTL8139Registers {
 
 pub struct RTL8139(RTL8139Registers);
 
+/*
+ * Just in case, if the card recieves packages and drops them
+ * somewhere in physical memory.
+ */
 static RX_BUFFER: [u8; 0x2000] = [0; 0x2000];
 
 impl NetworkDeviceTrait for RTL8139 {

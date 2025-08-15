@@ -25,6 +25,10 @@ pub use exception::{
 	setup_exception_handlers
 };
 
+/*
+ * Setup on the boot core. Calls per_core_setup,
+ * adds all boot tasks and sets up syscalls.
+ */
 pub fn boot_core_setup() {
 	per_core_setup();
 	boottask::BootTask::add_boot_tasks();
@@ -32,6 +36,9 @@ pub fn boot_core_setup() {
 	INITALIZATION_LOCK.unlock();
 }
 
+/*
+ * Initalizes scheduler timer and exception handler
+ */
 pub fn per_core_setup() {
 	scheduler::init_yield_timer();
 	setup_exception_handlers();
@@ -41,6 +48,11 @@ pub fn is_initalized() -> bool {
 	!INITALIZATION_LOCK.is_locked()
 }
 
+/*
+ * Tries to mounts every disk. Then the file "/init" in
+ * each filesystem is searched and executed.
+ * Panics if no executable or filesystem is found.
+ */
 pub fn spawn_init() -> ! {
 	crate::std::log::info!("Spawning init process ...");
 	let mut success = false;
